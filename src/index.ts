@@ -40,12 +40,14 @@ interface ParserOptions {
 	variables: boolean;
 	options: boolean;
 	operators: boolean;
+	interpolatedStrings: boolean;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	variables: true,
 	options: true,
 	operators: true,
+	interpolatedStrings: true,
 };
 
 export class CommandAstParser {
@@ -147,7 +149,7 @@ export class CommandAstParser {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
-			if (char === TOKEN.VARIABLE) {
+			if (char === TOKEN.VARIABLE && this.options.interpolatedStrings && this.options.variables) {
 				this.pop();
 				print("createInterpolated");
 
