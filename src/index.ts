@@ -15,6 +15,7 @@ import {
 } from "Nodes";
 
 const enum Operator {
+	AndAsync = "&",
 	And = "&&",
 	Pipe = "|",
 }
@@ -28,6 +29,7 @@ const enum TOKEN {
 	DASH = "-",
 	END = ";",
 	VARIABLE = "$",
+	HASH = "#",
 }
 
 interface ParserOptions {
@@ -145,6 +147,16 @@ export class CommandAstParser {
 		}
 	}
 
+	private parseComment() {
+		while (this.ptr < this.raw.size()) {
+			const char = this.next();
+			if (char === "\n" || char === "\r") {
+				break;
+			}
+			this.ptr++;
+		}
+	}
+
 	private parseVariable() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
@@ -224,6 +236,9 @@ export class CommandAstParser {
 			} else if (char === TOKEN.SPACE) {
 				this.consume();
 				this.pop();
+				continue;
+			} else if (char === TOKEN.HASH) {
+				this.parseComment();
 				continue;
 			} else if (this.options.variables && char === TOKEN.VARIABLE) {
 				this.pop();

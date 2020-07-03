@@ -3,16 +3,23 @@ local CommandLib = TS.import(script, script.Parent, "CommandLib")
 local CommandAstParser = CommandLib.CommandAstParser
 
 local parsed = CommandAstParser.new([[
-    same-line hello; same-line world
-    regular hello world
-    numeric 11
-    double-quote "this is a long string"
-    single-quote 'hi there lol'
-    options -abC ccc --longName value
-    variables $player
-    test & value; test2 & value2 & yo
+    # Regular Commands
+    cmd hello there
+    cmd "Hello there"
+    cmd 'Hello there!!'
+    cmd 1337
+
+    # Cooler Commands
+    cmd -kEwL --cool yes
+    cmd --something yes -ok cool
+
+    # Binary Expression Commands
+    cmd one && cmd --number two
+    cmd with-pipe | yes
 ]]):Parse()
 CommandAstParser:prettyPrint(parsed)
 
--- local parsed2 = CommandAstParser.new("test 10; split 'by a semicolon'"):Parse()
+-- local parsed2 = CommandAstParser.new([[
+--     test -kVc | yo
+-- ]]):Parse()
 -- CommandAstParser:prettyPrint(parsed2)
