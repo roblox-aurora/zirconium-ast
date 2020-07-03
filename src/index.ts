@@ -102,9 +102,6 @@ export class CommandAstParser {
 
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
-			// If we're empty, just send a "END" node
-			this.childNodes.push({ kind: ParserSyntaxKind.End });
-
 			const nameNode = getSiblingNode(this.childNodes, ParserSyntaxKind.CommandName);
 			if (nameNode) {
 				const lastNode = this.getNodeAt(-1);
