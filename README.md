@@ -18,3 +18,12 @@ Command AST
     `cmd $variable`
 
     `cmd "Hello, $player!"` (string interpolation)
+
+- Binary Expressions
+
+    `cmd1 && cmd2` (run one command after another)
+
+    `cmd | echo` (run command with output of previous command)
+
+- Misc
+    Supports multi-line commands, also can separate command statements with a semicolon (`;`)
