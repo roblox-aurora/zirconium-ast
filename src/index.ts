@@ -12,6 +12,9 @@ import {
 	createOperator,
 	createBinaryExpression,
 	OperatorNode,
+	createInterpolatedString,
+	InterpolatedExpression,
+	StringNode,
 } from "Nodes";
 
 const enum Operator {
@@ -74,21 +77,27 @@ export class CommandAstParser {
 		return value;
 	}
 
+	private pushChildNode(node: Node | undefined) {
+		node !== undefined && this.childNodes.push(node);
+	}
+
 	private consume() {
+		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
 		if (this.tokens !== "") {
 			if (!this.hasCommandName) {
-				this.childNodes.push(createCommandName(this.tokens));
+				node = createCommandName(this.tokens);
 				this.hasCommandName = true;
 			} else {
 				if (this.tokens.match("^%d+$")[0] !== undefined) {
-					this.childNodes.push(createNumberNode(tonumber(this.tokens)!));
+					node = createNumberNode(tonumber(this.tokens)!);
 				} else {
-					this.childNodes.push(createStringNode(this.tokens.trim()));
+					node = createStringNode(this.tokens.trim());
 				}
 			}
 			this.tokens = "";
 		}
+		return node;
 	}
 
 	private getNodeAt(offset = 0) {
@@ -100,7 +109,7 @@ export class CommandAstParser {
 	}
 
 	private createCommand() {
-		this.consume();
+		this.pushChildNode(this.consume());
 
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
@@ -133,12 +142,35 @@ export class CommandAstParser {
 	}
 
 	private consumeStringLiteral(endChar = TOKEN.DOUBLE_QUOTE) {
+		let isInterpolated = false;
+		const interpolated: InterpolatedExpression["values"] = [];
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
-			if (char === endChar) {
+			if (char === TOKEN.VARIABLE) {
 				this.pop();
-				this.consume();
+				print("createInterpolated");
+
+				isInterpolated = true;
+				const prev = this.consume();
+				prev && interpolated.push(prev as StringNode);
+
+				const variable = this.parseVariable();
+				variable && interpolated.push(variable);
+				continue;
+			} else if (char === endChar) {
+				this.pop();
+
+				if (isInterpolated) {
+					print("pushInterpolated");
+					const ending = this.consume() as StringNode;
+					ending && interpolated.push(ending);
+
+					this.pushChildNode(createInterpolatedString(...interpolated));
+				} else {
+					this.pushChildNode(this.consume());
+				}
+
 				break;
 			}
 
@@ -161,11 +193,11 @@ export class CommandAstParser {
 			const char = this.next();
 			if (char === TOKEN.SPACE || char.match("%a")[0] === undefined) {
 				if (this.tokens !== "") {
-					this.childNodes.push(createIdentifier(this.tokens));
+					const identifier = createIdentifier(this.tokens);
 					this.tokens = "";
-					break;
+					return identifier;
 				} else {
-					throw `Invalid Variable Name`;
+					throw `Invalid Variable Name: ${this.tokens}`;
 				}
 			}
 
@@ -178,8 +210,9 @@ export class CommandAstParser {
 
 		// In case it's last in the index
 		if (this.tokens !== "") {
-			this.childNodes.push(createIdentifier(this.tokens));
+			const identifier = createIdentifier(this.tokens);
 			this.tokens = "";
+			return identifier;
 		}
 	}
 
@@ -241,7 +274,7 @@ export class CommandAstParser {
 				this.pop();
 				continue;
 			} else if (char === TOKEN.SPACE) {
-				this.consume();
+				this.pushChildNode(this.consume());
 				this.pop();
 				continue;
 			} else if (char === TOKEN.HASH) {
@@ -249,7 +282,8 @@ export class CommandAstParser {
 				continue;
 			} else if (this.options.variables && char === TOKEN.VARIABLE) {
 				this.pop();
-				this.parseVariable();
+				const id = this.parseVariable();
+				id && this.pushChildNode(id);
 				continue;
 			} else if (this.nextMatch(Operator.And) && this.options.operators) {
 				this.pop(2);
@@ -287,7 +321,7 @@ export class CommandAstParser {
 			this.escaped = false;
 		}
 
-		this.consume();
+		this.pushChildNode(this.consume());
 		this.createCommand();
 
 		this.validateTree();
@@ -315,6 +349,9 @@ export class CommandAstParser {
 			} else if (isNode(node, ParserSyntaxKind.BinaryExpression)) {
 				print(prefix, "BinaryExpression", node.op);
 				this.prettyPrint([node.left, node.right], prefix + "\t");
+			} else if (isNode(node, ParserSyntaxKind.InterpolatedString)) {
+				print(prefix, "InterpolatedExpression");
+				this.prettyPrint(node.values, prefix + "\t");
 			} else {
 				print(prefix, "unknown", node.kind);
 			}

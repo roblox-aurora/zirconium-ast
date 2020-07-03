@@ -21,6 +21,10 @@ local parsed = CommandAstParser.new([[
     cmd one \
         two \
         three
+
+    # Support Interpolated Strings and Variables
+    cmd $spartaName
+    echo "Hello, $player!"
 ]]):Parse()
 CommandAstParser:prettyPrint(parsed)
 

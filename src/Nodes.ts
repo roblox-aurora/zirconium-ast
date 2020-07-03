@@ -8,6 +8,7 @@ export enum ParserSyntaxKind {
 	Identifier,
 	Operator,
 	BinaryExpression,
+	InterpolatedString,
 	End,
 }
 
@@ -23,6 +24,11 @@ type OP = "&&" | "|";
 export interface OperatorNode extends NodeBase {
 	operator: OP;
 	kind: ParserSyntaxKind.Operator;
+}
+
+export interface InterpolatedExpression extends NodeBase {
+	kind: ParserSyntaxKind.InterpolatedString;
+	values: Array<StringNode | IdentifierNode>;
 }
 
 export interface BinaryExpression extends NodeBase {
@@ -72,6 +78,7 @@ export type Node =
 	| IdentifierNode
 	| FlagNode
 	| CommandNameNode
+	| InterpolatedExpression
 	| CommandStatement
 	| NumberNode
 	| End;
@@ -112,6 +119,10 @@ export function createBinaryExpression(left: Node, op: BinaryExpression["op"], r
 	return { kind: ParserSyntaxKind.BinaryExpression, left, op, right };
 }
 
+export function createInterpolatedString(...values: InterpolatedExpression["values"]): InterpolatedExpression {
+	return { kind: ParserSyntaxKind.InterpolatedString, values };
+}
+
 export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind.CommandName): CommandNameNode | undefined;
 export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind) {
 	return nodes.find((f) => f.kind === kind);
@@ -127,6 +138,7 @@ interface NodeTypes {
 	[ParserSyntaxKind.Option]: FlagNode;
 	[ParserSyntaxKind.Identifier]: IdentifierNode;
 	[ParserSyntaxKind.Number]: NumberNode;
+	[ParserSyntaxKind.InterpolatedString]: InterpolatedExpression;
 	[ParserSyntaxKind.BinaryExpression]: BinaryExpression;
 	[ParserSyntaxKind.Operator]: OperatorNode;
 }
