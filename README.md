@@ -27,3 +27,45 @@ Command AST
 
 - Misc
     Supports multi-line commands, also can separate command statements with a semicolon (`;`)
+
+
+## Structures
+Here are some examples of the generated AST (simplified using `CommandAstParser.prettyPrint`)
+
+Basic statement: `echo "Hello, World!"`
+```
+CommandStatement {
+    CommandName echo
+    String "Hello, World!"
+}
+```
+
+Optioned Statement: `cmd -kEwL --cool yes`
+```
+CommandStatement {
+    CommandName cmd
+    Option k
+    Option E
+    Option w
+    Option L
+    Option cool
+    String "yes"
+}
+```
+
+
+BinaryExpression Statement: `cmd one && cmd --number two`
+```
+BinaryExpression {
+    operator: "&&"
+    CommandStatement {
+        CommandName cmd
+        String "one"
+    }
+    CommandStatement {
+        CommandName cmd
+        Option number
+        String "two"
+    }
+}
+```

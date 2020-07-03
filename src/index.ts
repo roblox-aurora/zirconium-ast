@@ -329,26 +329,30 @@ export class CommandAstParser {
 	public static prettyPrint(nodes: Node[], prefix = "") {
 		for (const node of nodes) {
 			if (isNode(node, ParserSyntaxKind.CommandName)) {
-				print(prefix, "CommandName", node.name.text);
+				print(prefix, ParserSyntaxKind[node.kind], node.name.text);
 			} else if (isNode(node, ParserSyntaxKind.String)) {
-				print(prefix, "StringLiteral", `"${node.text}"`);
+				print(prefix, ParserSyntaxKind[node.kind], `"${node.text}"`);
 			} else if (isNode(node, ParserSyntaxKind.CommandStatement)) {
-				print(prefix, "CommandStatement");
+				print(prefix, ParserSyntaxKind[node.kind], "{");
 				this.prettyPrint(node.children, prefix + "\t");
+				print(prefix, "}");
 			} else if (isNode(node, ParserSyntaxKind.Number)) {
-				print(prefix, "NumberLiteral", node.value);
+				print(prefix, ParserSyntaxKind[node.kind], node.value);
 			} else if (isNode(node, ParserSyntaxKind.Option)) {
-				print(prefix, "Option", node.flag);
+				print(prefix, ParserSyntaxKind[node.kind], node.flag);
 			} else if (isNode(node, ParserSyntaxKind.Identifier)) {
-				print(prefix, "ID", node.name);
+				print(prefix, ParserSyntaxKind[node.kind], node.name);
 			} else if (isNode(node, ParserSyntaxKind.Operator)) {
-				print(prefix, "Operator", node.operator);
+				print(prefix, ParserSyntaxKind[node.kind], node.operator);
 			} else if (isNode(node, ParserSyntaxKind.BinaryExpression)) {
-				print(prefix, "BinaryExpression", node.op);
+				print(prefix, ParserSyntaxKind[node.kind], "{");
+				print(prefix + "\t", "operator:", `"${node.op}"`);
 				this.prettyPrint([node.left, node.right], prefix + "\t");
+				print(prefix, "}");
 			} else if (isNode(node, ParserSyntaxKind.InterpolatedString)) {
-				print(prefix, "InterpolatedStringExpression");
+				print(prefix, ParserSyntaxKind[node.kind]);
 				this.prettyPrint(node.values, prefix + "\t");
+				print(prefix, "}");
 			} else {
 				print(prefix, "unknown", node.kind);
 			}

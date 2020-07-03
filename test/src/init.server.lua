@@ -28,7 +28,7 @@ local parsed = CommandAstParser.new([[
 ]]):Parse()
 CommandAstParser:prettyPrint(parsed)
 
--- local parsed2 = CommandAstParser.new([[
---     test -kVc | yo
--- ]]):Parse()
--- CommandAstParser:prettyPrint(parsed2)
+local parsed2 = CommandAstParser.new([[
+    echo "Hello, World!"
+]]):Parse()
+CommandAstParser:prettyPrint(parsed2)
