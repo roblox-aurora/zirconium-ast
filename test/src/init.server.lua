@@ -16,6 +16,11 @@ local parsed = CommandAstParser.new([[
     # Binary Expression Commands
     cmd one && cmd --number two
     cmd with-pipe | yes
+
+    # Support Multiline
+    cmd one \
+        two \
+        three
 ]]):Parse()
 CommandAstParser:prettyPrint(parsed)
 

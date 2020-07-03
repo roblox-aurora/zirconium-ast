@@ -30,6 +30,7 @@ const enum TOKEN {
 	END = ";",
 	VARIABLE = "$",
 	HASH = "#",
+	BACKSLASH = "\\",
 }
 
 interface ParserOptions {
@@ -51,6 +52,7 @@ export class CommandAstParser {
 	private hasCommandName = false;
 	private tokens = "";
 	private raw: string;
+	private escaped = false;
 	private options: ParserOptions;
 
 	constructor(raw: string, options?: ParserOptions) {
@@ -82,7 +84,7 @@ export class CommandAstParser {
 				if (this.tokens.match("^%d+$")[0] !== undefined) {
 					this.childNodes.push(createNumberNode(tonumber(this.tokens)!));
 				} else {
-					this.childNodes.push(createStringNode(this.tokens));
+					this.childNodes.push(createStringNode(this.tokens.trim()));
 				}
 			}
 			this.tokens = "";
@@ -227,7 +229,15 @@ export class CommandAstParser {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
-				this.createCommand();
+				if (!this.escaped) {
+					this.createCommand();
+					this.escaped = false;
+				}
+
+				this.pop();
+				continue;
+			} else if (char === "\\") {
+				this.escaped = true;
 				this.pop();
 				continue;
 			} else if (char === TOKEN.SPACE) {
@@ -267,12 +277,14 @@ export class CommandAstParser {
 					continue;
 				}
 			} else if (char === TOKEN.DOUBLE_QUOTE || char === TOKEN.SINGLE_QUOTE) {
+				this.escaped = false;
 				this.pop();
 				this.consumeStringLiteral(char);
 				continue;
 			}
 
 			this.tokens += this.pop();
+			this.escaped = false;
 		}
 
 		this.consume();
@@ -288,9 +300,9 @@ export class CommandAstParser {
 			if (isNode(node, ParserSyntaxKind.CommandName)) {
 				print(prefix, "CommandName", node.name.text);
 			} else if (isNode(node, ParserSyntaxKind.String)) {
-				print(prefix, "StringLiteral", node.text);
+				print(prefix, "StringLiteral", `"${node.text}"`);
 			} else if (isNode(node, ParserSyntaxKind.CommandStatement)) {
-				print(prefix, "CommandStatement", `sizeof(${node.children.size()})`);
+				print(prefix, "CommandStatement");
 				this.prettyPrint(node.children, prefix + "\t");
 			} else if (isNode(node, ParserSyntaxKind.Number)) {
 				print(prefix, "NumberLiteral", node.value);
