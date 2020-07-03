@@ -26,7 +26,7 @@ export interface OperatorNode extends NodeBase {
 	kind: ParserSyntaxKind.Operator;
 }
 
-export interface InterpolatedExpression extends NodeBase {
+export interface InterpolatedStringExpression extends NodeBase {
 	kind: ParserSyntaxKind.InterpolatedString;
 	values: Array<StringNode | IdentifierNode>;
 }
@@ -78,7 +78,7 @@ export type Node =
 	| IdentifierNode
 	| FlagNode
 	| CommandNameNode
-	| InterpolatedExpression
+	| InterpolatedStringExpression
 	| CommandStatement
 	| NumberNode
 	| End;
@@ -119,7 +119,9 @@ export function createBinaryExpression(left: Node, op: BinaryExpression["op"], r
 	return { kind: ParserSyntaxKind.BinaryExpression, left, op, right };
 }
 
-export function createInterpolatedString(...values: InterpolatedExpression["values"]): InterpolatedExpression {
+export function createInterpolatedString(
+	...values: InterpolatedStringExpression["values"]
+): InterpolatedStringExpression {
 	return { kind: ParserSyntaxKind.InterpolatedString, values };
 }
 
@@ -138,7 +140,7 @@ interface NodeTypes {
 	[ParserSyntaxKind.Option]: FlagNode;
 	[ParserSyntaxKind.Identifier]: IdentifierNode;
 	[ParserSyntaxKind.Number]: NumberNode;
-	[ParserSyntaxKind.InterpolatedString]: InterpolatedExpression;
+	[ParserSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
 	[ParserSyntaxKind.BinaryExpression]: BinaryExpression;
 	[ParserSyntaxKind.Operator]: OperatorNode;
 }

@@ -13,7 +13,7 @@ import {
 	createBinaryExpression,
 	OperatorNode,
 	createInterpolatedString,
-	InterpolatedExpression,
+	InterpolatedStringExpression,
 	StringNode,
 } from "Nodes";
 
@@ -143,7 +143,7 @@ export class CommandAstParser {
 
 	private consumeStringLiteral(endChar = TOKEN.DOUBLE_QUOTE) {
 		let isInterpolated = false;
-		const interpolated: InterpolatedExpression["values"] = [];
+		const interpolated: InterpolatedStringExpression["values"] = [];
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
@@ -350,7 +350,7 @@ export class CommandAstParser {
 				print(prefix, "BinaryExpression", node.op);
 				this.prettyPrint([node.left, node.right], prefix + "\t");
 			} else if (isNode(node, ParserSyntaxKind.InterpolatedString)) {
-				print(prefix, "InterpolatedExpression");
+				print(prefix, "InterpolatedStringExpression");
 				this.prettyPrint(node.values, prefix + "\t");
 			} else {
 				print(prefix, "unknown", node.kind);
