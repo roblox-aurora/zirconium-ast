@@ -132,7 +132,6 @@ export class CommandAstParser {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
 				}
 			} else {
-				print(this.raw.sub(0, this.ptr));
 				throw `Expected ${ParserSyntaxKind[ParserSyntaxKind.CommandName]}, got ${
 					ParserSyntaxKind[this.getNodeAt(-1).kind]
 				}`;
@@ -151,7 +150,6 @@ export class CommandAstParser {
 
 			if (char === TOKEN.VARIABLE && this.options.interpolatedStrings && this.options.variables) {
 				this.pop();
-				print("createInterpolated");
 
 				isInterpolated = true;
 				const prev = this.consume();
@@ -164,7 +162,6 @@ export class CommandAstParser {
 				this.pop();
 
 				if (isInterpolated) {
-					print("pushInterpolated");
 					const ending = this.consume() as StringNode;
 					ending && interpolated.push(ending);
 
@@ -260,7 +257,6 @@ export class CommandAstParser {
 	}
 
 	public Parse() {
-		print("Parsing command, sizeof  " + this.raw.size());
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
@@ -327,7 +323,6 @@ export class CommandAstParser {
 		this.createCommand();
 
 		this.validateTree();
-		print("Returned " + this.nodes.size() + " nodes");
 		return this.nodes;
 	}
 
