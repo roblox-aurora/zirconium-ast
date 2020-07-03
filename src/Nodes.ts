@@ -132,7 +132,7 @@ interface NodeTypes {
 }
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
-	return node.kind === type;
+	return node !== undefined && node.kind === type;
 }
 
 export function isCommandNode(node: Node): node is CommandNameNode {

@@ -10,7 +10,7 @@ local parsed = CommandAstParser.new([[
     single-quote 'hi there lol'
     options -abC ccc --longName value
     variables $player
-    test & value; test2 & value2
+    test & value; test2 & value2 & yo
 ]]):Parse()
 CommandAstParser:prettyPrint(parsed)
 

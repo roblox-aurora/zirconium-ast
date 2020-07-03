@@ -5,12 +5,12 @@ import {
 	createCommandStatement,
 	createCommandName,
 	createStringNode,
-	isCommandNode,
 	isNode,
 	createNumberNode,
 	createOption,
 	createIdentifier,
 	createOperator,
+	createBinaryExpression,
 } from "Nodes";
 
 const enum Operator {
@@ -43,7 +43,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 export class CommandAstParser {
 	private ptr = 0;
 	private childNodes = new Array<Node>();
-	private readonly nodes = new Array<Node>();
+	private nodes = new Array<Node>();
 	private hasCommandName = false;
 	private tokens = "";
 	private raw: string;
@@ -85,6 +85,18 @@ export class CommandAstParser {
 		}
 	}
 
+	private getNodeAt(offset = 0) {
+		if (offset < 0) {
+			return this.nodes[this.nodes.size() + offset];
+		} else {
+			return this.nodes[offset];
+		}
+	}
+
+	private swapLastNode(node: Node) {
+		this.nodes[this.nodes.size()] = node;
+	}
+
 	private createCommand() {
 		this.consume();
 
@@ -95,7 +107,16 @@ export class CommandAstParser {
 
 			const nameNode = getSiblingNode(this.childNodes, ParserSyntaxKind.CommandName);
 			if (nameNode) {
-				this.nodes.push(createCommandStatement(nameNode, this.childNodes));
+				const lastNode = this.getNodeAt(-1);
+				if (isNode(lastNode, ParserSyntaxKind.Operator)) {
+					const prevNode = this.getNodeAt(-2);
+					this.nodes = [
+						...this.nodes.slice(0, this.nodes.size() - 2),
+						createBinaryExpression(prevNode, "&", createCommandStatement(nameNode, this.childNodes)),
+					];
+				} else {
+					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
+				}
 			} else {
 				throw `Could not find CommandNameNode`;
 			}
@@ -230,6 +251,10 @@ export class CommandAstParser {
 		return this.nodes;
 	}
 
+	public Flatten() {
+		const nodes = new Array<Node>();
+	}
+
 	public static prettyPrint(nodes: Node[], prefix = "") {
 		for (const node of nodes) {
 			if (isNode(node, ParserSyntaxKind.CommandName)) {
@@ -247,6 +272,9 @@ export class CommandAstParser {
 				print(prefix, "ID", node.name);
 			} else if (isNode(node, ParserSyntaxKind.Operator)) {
 				print(prefix, "Operator", node.operator);
+			} else if (isNode(node, ParserSyntaxKind.BinaryExpression)) {
+				print(prefix, "BinaryExpression", node.op);
+				this.prettyPrint([node.left, node.right], prefix + "\t");
 			} else {
 				print(prefix, "unknown", node.kind);
 			}
