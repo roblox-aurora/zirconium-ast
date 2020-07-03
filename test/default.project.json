@@ -1,0 +1,19 @@
+{
+    "name": "Test",
+    "servePort": 34567,
+	"tree": {
+        "$className": "DataModel",
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "Test": {
+                "$path": "src"
+            },
+            "CommandLib": {
+                "$path": "../out",
+                "vendor": {
+                    "$path": "../include"
+                }
+            }
+        }
+    }
+}
