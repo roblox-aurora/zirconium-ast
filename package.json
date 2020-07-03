@@ -1,10 +1,10 @@
 {
-  "name": "@rbxts/rbx-cmdparse",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@rbxts/cmd-ast",
+  "version": "0.2.0",
+  "description": "Command parser that creates an AST for use by command frameworks on ROBLOX",
   "main": "out/init.lua",
   "scripts": {
-    "prepublishOnly": "rbxtsc"
+    "prepublishOnly": "rbxtsc-dev"
   },
   "keywords": [],
   "author": "",
