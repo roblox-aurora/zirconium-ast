@@ -1,4 +1,5 @@
 export enum CmdSyntaxKind {
+	Unknown,
 	CommandStatement,
 	String,
 	StringLiteral,
@@ -87,8 +88,13 @@ export type Node =
 // Creators
 ////////////////////////////////////////////
 
-export function createCommandStatement(command: CommandName, children: Node[]): CommandStatement {
-	return { kind: CmdSyntaxKind.CommandStatement, command, children };
+export function createCommandStatement(command: CommandName, children: Node[]) {
+	const statement: CommandStatement = { kind: CmdSyntaxKind.CommandStatement, command, children };
+	for (const child of statement.children) {
+		child.parent = statement;
+	}
+
+	return statement;
 }
 
 export function createStringNode(text: string): StringLiteral {
@@ -116,13 +122,20 @@ export function createOperator(operator: OperatorLiteral["operator"]): OperatorL
 }
 
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
-	return { kind: CmdSyntaxKind.BinaryExpression, left, op, right };
+	const expression: BinaryExpression = { kind: CmdSyntaxKind.BinaryExpression, left, op, right };
+	left.parent = expression;
+	right.parent = expression;
+	return expression;
 }
 
 export function createInterpolatedString(
 	...values: InterpolatedStringExpression["values"]
 ): InterpolatedStringExpression {
-	return { kind: CmdSyntaxKind.InterpolatedString, values };
+	const expression: InterpolatedStringExpression = { kind: CmdSyntaxKind.InterpolatedString, values };
+	for (const value of values) {
+		value.parent = expression;
+	}
+	return expression;
 }
 
 export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind.CommandName): CommandName | undefined;
@@ -149,6 +162,14 @@ export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is 
 	return node !== undefined && node.kind === type;
 }
 
-export function isCommandNode(node: Node): node is CommandName {
-	return node.kind === CmdSyntaxKind.CommandName;
+export function getKindName(kind: CmdSyntaxKind | undefined) {
+	if (kind === undefined) {
+		return "<none>";
+	}
+
+	return CmdSyntaxKind[kind];
+}
+
+export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K): Array<NodeTypes[K]> {
+	return nodes.filter((node): node is NodeTypes[K] => isNode(node, type));
 }

@@ -11,10 +11,10 @@ import {
 	createIdentifier,
 	createOperator,
 	createBinaryExpression,
-	OperatorLiteral,
 	createInterpolatedString,
 	InterpolatedStringExpression,
 	StringLiteral,
+	getKindName,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -334,6 +334,7 @@ export default class CommandAstParser {
 				print(prefix, CmdSyntaxKind[node.kind], `"${node.text}"`);
 			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
+				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
 				this.prettyPrint(node.children, prefix + "\t");
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.Number)) {
@@ -346,11 +347,13 @@ export default class CommandAstParser {
 				print(prefix, CmdSyntaxKind[node.kind], node.operator);
 			} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", "operator:", `"${node.op}"`);
+				print(prefix + "\t", ".operator", `"${node.op}"`);
+				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
 				this.prettyPrint([node.left, node.right], prefix + "\t");
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
+				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
 				this.prettyPrint(node.values, prefix + "\t");
 				print(prefix, "}");
 			} else {
