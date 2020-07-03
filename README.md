@@ -69,3 +69,16 @@ BinaryExpression {
     }
 }
 ```
+
+InterpolatedStringExpression Statement: `echo "Hello, $player!"`
+
+```
+CommandStatement {
+    CommandName echo
+    InterpolatedString {
+        String "Hello,"
+        Identifier player
+        String "!"
+    }
+}
+```

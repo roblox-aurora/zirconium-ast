@@ -350,7 +350,7 @@ export class CommandAstParser {
 				this.prettyPrint([node.left, node.right], prefix + "\t");
 				print(prefix, "}");
 			} else if (isNode(node, ParserSyntaxKind.InterpolatedString)) {
-				print(prefix, ParserSyntaxKind[node.kind]);
+				print(prefix, ParserSyntaxKind[node.kind], "{");
 				this.prettyPrint(node.values, prefix + "\t");
 				print(prefix, "}");
 			} else {
