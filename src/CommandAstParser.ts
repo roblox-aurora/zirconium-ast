@@ -15,7 +15,7 @@ import {
 	createInterpolatedString,
 	InterpolatedStringExpression,
 	StringLiteral,
-} from "Nodes";
+} from "./Nodes";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
