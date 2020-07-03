@@ -18,15 +18,17 @@ interface NodeBase {
 	endPos?: number;
 }
 
+type OP = "&&" | "|";
+
 export interface OperatorNode extends NodeBase {
-	operator: "&";
+	operator: OP;
 	kind: ParserSyntaxKind.Operator;
 }
 
 export interface BinaryExpression extends NodeBase {
 	kind: ParserSyntaxKind.BinaryExpression;
 	left: Node;
-	op: "&";
+	op: OP;
 	right: Node;
 }
 
@@ -109,8 +111,6 @@ export function createOperator(operator: OperatorNode["operator"]): OperatorNode
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
 	return { kind: ParserSyntaxKind.BinaryExpression, left, op, right };
 }
-
-export function createCommandANDChain(...commands: CommandStatement[]) {}
 
 export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind.CommandName): CommandNameNode | undefined;
 export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind) {

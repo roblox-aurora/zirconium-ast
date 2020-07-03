@@ -11,10 +11,12 @@ import {
 	createIdentifier,
 	createOperator,
 	createBinaryExpression,
+	OperatorNode,
 } from "Nodes";
 
 const enum Operator {
-	And = "&",
+	And = "&&",
+	Pipe = "|",
 }
 
 const enum TOKEN {
@@ -62,9 +64,9 @@ export class CommandAstParser {
 		return this.raw.sub(this.ptr + offset, this.ptr + offset + value.size() - 1) === value;
 	}
 
-	private pop() {
+	private pop(offset = 1) {
 		const value = this.next();
-		this.ptr++;
+		this.ptr += offset;
 		return value;
 	}
 
@@ -93,10 +95,6 @@ export class CommandAstParser {
 		}
 	}
 
-	private swapLastNode(node: Node) {
-		this.nodes[this.nodes.size()] = node;
-	}
-
 	private createCommand() {
 		this.consume();
 
@@ -112,13 +110,20 @@ export class CommandAstParser {
 					const prevNode = this.getNodeAt(-2);
 					this.nodes = [
 						...this.nodes.slice(0, this.nodes.size() - 2),
-						createBinaryExpression(prevNode, "&", createCommandStatement(nameNode, this.childNodes)),
+						createBinaryExpression(
+							prevNode,
+							lastNode.operator,
+							createCommandStatement(nameNode, this.childNodes),
+						),
 					];
 				} else {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
 				}
 			} else {
-				throw `Could not find CommandNameNode`;
+				print(this.raw.sub(0, this.ptr));
+				throw `Expected ${ParserSyntaxKind[ParserSyntaxKind.CommandName]}, got ${
+					ParserSyntaxKind[this.getNodeAt(-1).kind]
+				}`;
 			}
 
 			this.hasCommandName = false;
@@ -188,6 +193,15 @@ export class CommandAstParser {
 		}
 	}
 
+	private validateTree() {
+		const lastNode = this.getNodeAt(-1);
+
+		// Don't allow a trailing &
+		if (isNode(lastNode, ParserSyntaxKind.Operator)) {
+			throw `Trailing ${lastNode.operator} is invalid`;
+		}
+	}
+
 	private parseFlags() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
@@ -216,9 +230,14 @@ export class CommandAstParser {
 				this.parseVariable();
 				continue;
 			} else if (this.nextMatch(Operator.And) && this.options.operators) {
-				this.pop();
+				this.pop(2);
 				this.createCommand();
 				this.nodes.push(createOperator(Operator.And));
+				continue;
+			} else if (this.nextMatch(Operator.Pipe) && this.options.operators) {
+				this.pop();
+				this.createCommand();
+				this.nodes.push(createOperator(Operator.Pipe));
 				continue;
 			} else if (
 				this.options.options &&
@@ -247,12 +266,9 @@ export class CommandAstParser {
 		this.consume();
 		this.createCommand();
 
+		this.validateTree();
 		print("Returned " + this.nodes.size() + " nodes");
 		return this.nodes;
-	}
-
-	public Flatten() {
-		const nodes = new Array<Node>();
 	}
 
 	public static prettyPrint(nodes: Node[], prefix = "") {
