@@ -29,6 +29,10 @@ local parsed = CommandAstParser.new([[
 CommandAstParser:prettyPrint(parsed)
 
 local parsed2 = CommandAstParser.new([[
-    echo "Hello, World!"
+    echo -ok \
+        --were "even" \
+        then && \
+        no u
 ]]):Parse()
-CommandAstParser:prettyPrint(parsed2)
+local test = CommandAstParser:render(parsed2[1])
+print(test)

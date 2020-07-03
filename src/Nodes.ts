@@ -1,4 +1,4 @@
-export enum ParserSyntaxKind {
+export enum CmdSyntaxKind {
 	CommandStatement,
 	String,
 	StringLiteral,
@@ -13,7 +13,7 @@ export enum ParserSyntaxKind {
 }
 
 interface NodeBase {
-	kind: ParserSyntaxKind;
+	kind: CmdSyntaxKind;
 	parent?: Node;
 	pos?: number;
 	endPos?: number;
@@ -21,112 +21,112 @@ interface NodeBase {
 
 type OP = "&&" | "|";
 
-export interface OperatorNode extends NodeBase {
+export interface OperatorLiteral extends NodeBase {
 	operator: OP;
-	kind: ParserSyntaxKind.Operator;
+	kind: CmdSyntaxKind.Operator;
 }
 
 export interface InterpolatedStringExpression extends NodeBase {
-	kind: ParserSyntaxKind.InterpolatedString;
-	values: Array<StringNode | IdentifierNode>;
+	kind: CmdSyntaxKind.InterpolatedString;
+	values: Array<StringLiteral | Identifier>;
 }
 
 export interface BinaryExpression extends NodeBase {
-	kind: ParserSyntaxKind.BinaryExpression;
+	kind: CmdSyntaxKind.BinaryExpression;
 	left: Node;
 	op: OP;
 	right: Node;
 }
 
-export interface CommandNameNode extends NodeBase {
-	kind: ParserSyntaxKind.CommandName;
-	name: StringNode;
+export interface CommandName extends NodeBase {
+	kind: CmdSyntaxKind.CommandName;
+	name: StringLiteral;
 }
 
-export interface StringNode extends NodeBase {
-	kind: ParserSyntaxKind.String;
+export interface StringLiteral extends NodeBase {
+	kind: CmdSyntaxKind.String;
 	text: string;
 }
 
-export interface NumberNode extends NodeBase {
-	kind: ParserSyntaxKind.Number;
+export interface NumberLiteral extends NodeBase {
+	kind: CmdSyntaxKind.Number;
 	value: number;
 }
 
 export interface CommandStatement extends NodeBase {
-	kind: ParserSyntaxKind.CommandStatement;
-	command: CommandNameNode;
+	kind: CmdSyntaxKind.CommandStatement;
+	command: CommandName;
 	children: Node[];
 }
 
-export interface FlagNode extends NodeBase {
+export interface Option extends NodeBase {
 	flag: string;
 }
 
-export interface IdentifierNode extends NodeBase {
+export interface Identifier extends NodeBase {
 	name: string;
 }
 
 export interface End extends NodeBase {
-	kind: ParserSyntaxKind.End;
+	kind: CmdSyntaxKind.End;
 }
 
 export type Node =
-	| StringNode
-	| OperatorNode
+	| StringLiteral
+	| OperatorLiteral
 	| BinaryExpression
-	| IdentifierNode
-	| FlagNode
-	| CommandNameNode
+	| Identifier
+	| Option
+	| CommandName
 	| InterpolatedStringExpression
 	| CommandStatement
-	| NumberNode
+	| NumberLiteral
 	| End;
 
 ////////////////////////////////////////////
 // Creators
 ////////////////////////////////////////////
 
-export function createCommandStatement(command: CommandNameNode, children: Node[]): CommandStatement {
-	return { kind: ParserSyntaxKind.CommandStatement, command, children };
+export function createCommandStatement(command: CommandName, children: Node[]): CommandStatement {
+	return { kind: CmdSyntaxKind.CommandStatement, command, children };
 }
 
-export function createStringNode(text: string): StringNode {
-	return { kind: ParserSyntaxKind.String, text };
+export function createStringNode(text: string): StringLiteral {
+	return { kind: CmdSyntaxKind.String, text };
 }
 
-export function createNumberNode(value: number): NumberNode {
-	return { kind: ParserSyntaxKind.Number, value };
+export function createNumberNode(value: number): NumberLiteral {
+	return { kind: CmdSyntaxKind.Number, value };
 }
 
-export function createCommandName(name: string): CommandNameNode {
-	return { kind: ParserSyntaxKind.CommandName, name: { kind: ParserSyntaxKind.String, text: name } };
+export function createCommandName(name: string): CommandName {
+	return { kind: CmdSyntaxKind.CommandName, name: { kind: CmdSyntaxKind.String, text: name } };
 }
 
-export function createIdentifier(name: string): IdentifierNode {
-	return { kind: ParserSyntaxKind.Identifier, name };
+export function createIdentifier(name: string): Identifier {
+	return { kind: CmdSyntaxKind.Identifier, name };
 }
 
-export function createOption(flag: string): FlagNode {
-	return { kind: ParserSyntaxKind.Option, flag };
+export function createOption(flag: string): Option {
+	return { kind: CmdSyntaxKind.Option, flag };
 }
 
-export function createOperator(operator: OperatorNode["operator"]): OperatorNode {
-	return { kind: ParserSyntaxKind.Operator, operator };
+export function createOperator(operator: OperatorLiteral["operator"]): OperatorLiteral {
+	return { kind: CmdSyntaxKind.Operator, operator };
 }
 
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
-	return { kind: ParserSyntaxKind.BinaryExpression, left, op, right };
+	return { kind: CmdSyntaxKind.BinaryExpression, left, op, right };
 }
 
 export function createInterpolatedString(
 	...values: InterpolatedStringExpression["values"]
 ): InterpolatedStringExpression {
-	return { kind: ParserSyntaxKind.InterpolatedString, values };
+	return { kind: CmdSyntaxKind.InterpolatedString, values };
 }
 
-export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind.CommandName): CommandNameNode | undefined;
-export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind) {
+export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind.CommandName): CommandName | undefined;
+export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind) {
 	return nodes.find((f) => f.kind === kind);
 }
 
@@ -134,21 +134,21 @@ export function getSiblingNode(nodes: Node[], kind: ParserSyntaxKind) {
 // Checks
 /////////////////////////////////////////////////
 interface NodeTypes {
-	[ParserSyntaxKind.CommandStatement]: CommandStatement;
-	[ParserSyntaxKind.CommandName]: CommandNameNode;
-	[ParserSyntaxKind.String]: StringNode;
-	[ParserSyntaxKind.Option]: FlagNode;
-	[ParserSyntaxKind.Identifier]: IdentifierNode;
-	[ParserSyntaxKind.Number]: NumberNode;
-	[ParserSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
-	[ParserSyntaxKind.BinaryExpression]: BinaryExpression;
-	[ParserSyntaxKind.Operator]: OperatorNode;
+	[CmdSyntaxKind.CommandStatement]: CommandStatement;
+	[CmdSyntaxKind.CommandName]: CommandName;
+	[CmdSyntaxKind.String]: StringLiteral;
+	[CmdSyntaxKind.Option]: Option;
+	[CmdSyntaxKind.Identifier]: Identifier;
+	[CmdSyntaxKind.Number]: NumberLiteral;
+	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
+	[CmdSyntaxKind.BinaryExpression]: BinaryExpression;
+	[CmdSyntaxKind.Operator]: OperatorLiteral;
 }
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
 	return node !== undefined && node.kind === type;
 }
 
-export function isCommandNode(node: Node): node is CommandNameNode {
-	return node.kind === ParserSyntaxKind.CommandName;
+export function isCommandNode(node: Node): node is CommandName {
+	return node.kind === CmdSyntaxKind.CommandName;
 }
