@@ -1,5 +1,6 @@
 export enum CmdSyntaxKind {
 	Unknown,
+	Source,
 	CommandStatement,
 	String,
 	StringLiteral,
@@ -27,6 +28,11 @@ export interface OperatorLiteral extends NodeBase {
 	kind: CmdSyntaxKind.Operator;
 }
 
+export interface CommandSource extends NodeBase {
+	kind: CmdSyntaxKind.Source;
+	children: Array<Node>;
+}
+
 export interface InterpolatedStringExpression extends NodeBase {
 	kind: CmdSyntaxKind.InterpolatedString;
 	values: Array<StringLiteral | Identifier>;
@@ -37,6 +43,7 @@ export interface BinaryExpression extends NodeBase {
 	left: Node;
 	op: OP;
 	right: Node;
+	children: Node[];
 }
 
 export interface CommandName extends NodeBase {
@@ -62,6 +69,7 @@ export interface CommandStatement extends NodeBase {
 
 export interface Option extends NodeBase {
 	flag: string;
+	right?: Node;
 }
 
 export interface Identifier extends NodeBase {
@@ -72,17 +80,17 @@ export interface End extends NodeBase {
 	kind: CmdSyntaxKind.End;
 }
 
-export type Node =
-	| StringLiteral
-	| OperatorLiteral
-	| BinaryExpression
-	| Identifier
-	| Option
-	| CommandName
-	| InterpolatedStringExpression
-	| CommandStatement
-	| NumberLiteral
-	| End;
+// export type Node =
+// 	| StringLiteral
+// 	| OperatorLiteral
+// 	| BinaryExpression
+// 	| Identifier
+// 	| Option
+// 	| CommandName
+// 	| InterpolatedStringExpression
+// 	| CommandStatement
+// 	| NumberLiteral
+// 	| End;
 
 ////////////////////////////////////////////
 // Creators
@@ -94,6 +102,14 @@ export function createCommandStatement(command: CommandName, children: Node[]) {
 		child.parent = statement;
 	}
 
+	return statement;
+}
+
+export function createCommandSource(children: CommandSource["children"]) {
+	const statement: CommandSource = { kind: CmdSyntaxKind.Source, children };
+	for (const child of statement.children) {
+		child.parent = statement;
+	}
 	return statement;
 }
 
@@ -122,7 +138,13 @@ export function createOperator(operator: OperatorLiteral["operator"]): OperatorL
 }
 
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
-	const expression: BinaryExpression = { kind: CmdSyntaxKind.BinaryExpression, left, op, right };
+	const expression: BinaryExpression = {
+		kind: CmdSyntaxKind.BinaryExpression,
+		left,
+		op,
+		right,
+		children: [left, right],
+	};
 	left.parent = expression;
 	right.parent = expression;
 	return expression;
@@ -151,6 +173,7 @@ interface NodeTypes {
 	[CmdSyntaxKind.CommandName]: CommandName;
 	[CmdSyntaxKind.String]: StringLiteral;
 	[CmdSyntaxKind.Option]: Option;
+	[CmdSyntaxKind.Source]: CommandSource;
 	[CmdSyntaxKind.Identifier]: Identifier;
 	[CmdSyntaxKind.Number]: NumberLiteral;
 	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
@@ -158,8 +181,17 @@ interface NodeTypes {
 	[CmdSyntaxKind.Operator]: OperatorLiteral;
 }
 
+type NonParentNode<T> = T extends { children: Node[] } ? never : T;
+export type ParentNode = Exclude<Node, NonParentNode<Node>>;
+
+export type Node = NodeTypes[keyof NodeTypes];
+
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
 	return node !== undefined && node.kind === type;
+}
+
+export function isParentNode(node: Node): node is ParentNode {
+	return "children" in node;
 }
 
 export function getKindName(kind: CmdSyntaxKind | undefined) {
@@ -172,4 +204,20 @@ export function getKindName(kind: CmdSyntaxKind | undefined) {
 
 export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K): Array<NodeTypes[K]> {
 	return nodes.filter((node): node is NodeTypes[K] => isNode(node, type));
+}
+
+export function getNextNode(node: Node): Node | undefined {
+	const { parent } = node;
+	if (parent && isParentNode(parent)) {
+		const index = parent.children.indexOf(node) + 1;
+		return parent.children[index];
+	}
+}
+
+export function getPreviousNode(node: Node): Node | undefined {
+	const { parent } = node;
+	if (parent && isParentNode(parent)) {
+		const index = parent.children.indexOf(node) - 1;
+		return parent.children[index];
+	}
 }

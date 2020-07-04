@@ -9,6 +9,8 @@ local parsed = CommandAstParser.new([[
     cmd 'Hello there!!'
     cmd 1337
 
+    cmd --test "Hello, $player!"
+
     # Cooler Commands
     cmd -kEwL --cool yes
     cmd --something yes -ok cool
@@ -26,12 +28,13 @@ local parsed = CommandAstParser.new([[
     cmd $spartaName
     echo "Hello, $player!"
 ]]):Parse()
-CommandAstParser:prettyPrint(parsed)
+CommandAstParser:prettyPrint({parsed})
+print(CommandAstParser:render(parsed))
 
 local parsed2 = CommandAstParser.new([[
     cmd -OK --testing \
         hello "There world" | \
         echo
 ]]):Parse()
-local test = CommandAstParser:render(parsed2[1])
+local test = CommandAstParser:render(parsed2)
 print(test)
