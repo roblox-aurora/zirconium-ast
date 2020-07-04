@@ -16,6 +16,7 @@ import {
 	StringLiteral,
 	getKindName,
 	createCommandSource,
+	CommandSource,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -258,7 +259,7 @@ export default class CommandAstParser {
 		}
 	}
 
-	public Parse() {
+	public Parse(): CommandSource {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
