@@ -183,7 +183,7 @@ export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind) {
 /////////////////////////////////////////////////
 // Checks
 /////////////////////////////////////////////////
-interface NodeTypes {
+export interface NodeTypes {
 	[CmdSyntaxKind.CommandStatement]: CommandStatement;
 	[CmdSyntaxKind.CommandName]: CommandName;
 	[CmdSyntaxKind.String]: StringLiteral;
@@ -201,6 +201,7 @@ interface NodeTypes {
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;
 export type ParentNode = Exclude<Node, NonParentNode<Node>>;
 
+export type NodeKind = keyof NodeTypes;
 export type Node = NodeTypes[keyof NodeTypes];
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {

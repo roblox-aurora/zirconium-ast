@@ -10,6 +10,9 @@ import {
 	BooleanLiteral,
 	createBooleanNode,
 	isNodeIn,
+	Node,
+	NodeKind,
+	NodeTypes,
 } from "./Nodes";
 
 type ValidationType = "string" | "number" | "boolean";
@@ -24,6 +27,10 @@ export interface ParsedNodeResult {
 	args: Array<StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral>;
 }
 
+interface InterpreterOptions {
+	throwOnInvalidOption: boolean;
+}
+
 /**
  * Used to interpret given command statements, will throw on invalid options & args
  *
@@ -31,12 +38,64 @@ export interface ParsedNodeResult {
 export default class CommandAstInterpreter {
 	constructor(private command: string, private options: CommandOption[], private args: ValidationType[]) {}
 
+	private expectOptionTypes<K extends NodeKind>(
+		option: Option,
+		node: Node,
+		...kind: K[]
+	): asserts node is NodeTypes[K] {
+		if (!isNodeIn(node, kind)) {
+			error(
+				`[CommandInterpreter] Invalid option for ${this.command}: ${option.flag} expects ${kind
+					.map((k) => getKindName(k))
+					.join(" | ")}, got ${getKindName(node?.kind)}.`,
+			);
+		}
+	}
+
+	private expectOptionType<K extends NodeKind>(option: Option, node: Node, kind: K): asserts node is NodeTypes[K] {
+		if (!isNode(node, kind)) {
+			error(
+				`[CommandInterpreter] Invalid option for ${this.command}: ${option.flag} expects ${getKindName(
+					kind,
+				)}, got ${getKindName(node?.kind)}.`,
+			);
+		}
+	}
+
+	private commandTypeHandler: Record<
+		CommandOption["type"],
+		(options: ParsedNodeResult["options"], optionNode: Option, nextNode: Node) => boolean
+	> = {
+		string: (options, node, nextNode) => {
+			this.expectOptionTypes(node, nextNode, CmdSyntaxKind.String, CmdSyntaxKind.InterpolatedString);
+			options.set(node, nextNode);
+			return true;
+		},
+		number: (options, node, nextNode) => {
+			this.expectOptionType(node, nextNode, CmdSyntaxKind.Number);
+			options.set(node, nextNode);
+			return true;
+		},
+		boolean: (options, node, nextNode) => {
+			this.expectOptionType(node, nextNode, CmdSyntaxKind.Boolean);
+			options.set(node, nextNode);
+			return true;
+		},
+		switch: (options, node, _) => {
+			options.set(node, createBooleanNode(true));
+			return false;
+		},
+	};
+
 	/**
 	 * Try interpreting the given statement
 	 *
 	 * @throws If there are invalid parts to the command - such as invalid options or arguments
 	 */
-	public interpret(statementNode: CommandStatement) {
+	public interpret(
+		statementNode: CommandStatement,
+		interpreterOptions: InterpreterOptions = { throwOnInvalidOption: true },
+	) {
 		const parsedResult: ParsedNodeResult = {
 			options: new Map(),
 			args: [],
@@ -60,43 +119,18 @@ export default class CommandAstInterpreter {
 				const option = this.options.find((f) => f.name === node.flag || f.alias?.includes(node.flag));
 
 				if (option === undefined) {
-					throw `[CommandInterpreter] Invalid option for ${this.command}: ${node.flag}`;
-				} else {
-					if (option.type === "number") {
-						const nextNode = children[ptr + 1];
-						if (!isNode(nextNode, CmdSyntaxKind.Number)) {
-							throw `[CommandInterpreter] Invalid option for ${this.command}: ${
-								node.flag
-							} expects Number, got ${getKindName(nextNode?.kind)}.`;
-						}
-						options.set(node, nextNode);
-						ptr++;
-					} else if (option.type === "string") {
-						const nextNode = children[ptr + 1];
-						if (
-							!isNode(nextNode, CmdSyntaxKind.String) &&
-							!isNode(nextNode, CmdSyntaxKind.InterpolatedString)
-						) {
-							throw `[CommandInterpreter] Invalid option for ${this.command}: ${
-								node.flag
-							} expects String, got ${getKindName(nextNode?.kind)}.`;
-						}
-						options.set(node, nextNode);
-						ptr++;
-					} else if (option.type === "boolean") {
-						const nextNode = children[ptr + 1];
-						if (!isNode(nextNode, CmdSyntaxKind.Boolean)) {
-							throw `[CommandInterpreter] Invalid option for ${this.command}: ${
-								node.flag
-							} expects Boolean, got ${getKindName(nextNode?.kind)}.`;
-						}
-						options.set(node, nextNode);
-						ptr++;
-					} else if (option.type === "switch") {
-						// Switch is basically just 'true' here.
-						options.set(node, createBooleanNode(true));
+					if (interpreterOptions.throwOnInvalidOption) {
+						throw `[CommandInterpreter] Invalid option for ${this.command}: ${node.flag}`;
 					} else {
-						throw `[CommandInterpreter] Cannot handle type: ${option.type}`;
+						this.commandTypeHandler.switch(options, node, children[ptr + 1]);
+					}
+				} else {
+					const typeHandler = this.commandTypeHandler[option.type];
+					if (typeHandler) {
+						const nextNode = children[ptr + 1];
+						typeHandler(options, node, nextNode) && ptr++;
+					} else {
+						throw `[CommandInterpreter] Cannot handle option type: ${option.type}`;
 					}
 				}
 			} else {
