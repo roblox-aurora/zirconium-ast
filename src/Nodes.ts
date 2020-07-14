@@ -12,7 +12,7 @@ export enum CmdSyntaxKind {
 	Operator,
 	BinaryExpression,
 	InterpolatedString,
-	End,
+	EndOfStatement,
 }
 
 interface NodeBase {
@@ -83,8 +83,8 @@ export interface Identifier extends NodeBase {
 	name: string;
 }
 
-export interface End extends NodeBase {
-	kind: CmdSyntaxKind.End;
+export interface EndOfStatement extends NodeBase {
+	kind: CmdSyntaxKind.EndOfStatement;
 }
 
 // export type Node =
@@ -148,6 +148,10 @@ export function createBooleanNode(value: boolean): BooleanLiteral {
 	return { kind: CmdSyntaxKind.Boolean, value };
 }
 
+export function createEndOfStatementNode(): EndOfStatement {
+	return { kind: CmdSyntaxKind.EndOfStatement };
+}
+
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
 	const expression: BinaryExpression = {
 		kind: CmdSyntaxKind.BinaryExpression,
@@ -184,6 +188,7 @@ interface NodeTypes {
 	[CmdSyntaxKind.CommandName]: CommandName;
 	[CmdSyntaxKind.String]: StringLiteral;
 	[CmdSyntaxKind.Option]: Option;
+	[CmdSyntaxKind.EndOfStatement]: EndOfStatement;
 	[CmdSyntaxKind.Source]: CommandSource;
 	[CmdSyntaxKind.Identifier]: Identifier;
 	[CmdSyntaxKind.Boolean]: BooleanLiteral;
@@ -200,6 +205,10 @@ export type Node = NodeTypes[keyof NodeTypes];
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
 	return node !== undefined && node.kind === type;
+}
+
+export function isNodeIn<K extends keyof NodeTypes>(node: Node, type: K[]): node is NodeTypes[K] {
+	return node !== undefined && (type as Array<CmdSyntaxKind>).includes(node.kind);
 }
 
 export function isParentNode(node: Node): node is ParentNode {

@@ -18,6 +18,7 @@ import {
 	createCommandSource,
 	CommandSource,
 	createBooleanNode,
+	createEndOfStatementNode,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -124,6 +125,8 @@ export default class CommandAstParser {
 
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
+			this.childNodes.push(createEndOfStatementNode());
+
 			const nameNode = getSiblingNode(this.childNodes, CmdSyntaxKind.CommandName);
 			if (nameNode) {
 				const lastNode = this.getNodeAt(-1);
