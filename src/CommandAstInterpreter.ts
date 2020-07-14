@@ -24,12 +24,9 @@ export interface ParsedNodeResult {
 	args: Array<StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral>;
 }
 
-// class CommandInterpreterResult {
-// 	constructor(public readonly result: ParsedNodeResult) {}
-// }
-
 /**
  * Used to interpret given command statements, will throw on invalid options & args
+ *
  */
 export default class CommandAstInterpreter {
 	constructor(private command: string, private options: CommandOption[], private args: ValidationType[]) {}
@@ -104,14 +101,7 @@ export default class CommandAstInterpreter {
 				}
 			} else {
 				// Handle arguments
-				if (
-					isNodeIn(node, [
-						CmdSyntaxKind.String,
-						CmdSyntaxKind.Boolean,
-						CmdSyntaxKind.Number,
-						CmdSyntaxKind.InterpolatedString,
-					])
-				) {
+				if (!isNodeIn(node, [CmdSyntaxKind.CommandName, CmdSyntaxKind.EndOfStatement])) {
 					if (argIdx > this.args.size()) {
 						throw `[CommandInterpreter] Exceeding maximum arguments`;
 					}
