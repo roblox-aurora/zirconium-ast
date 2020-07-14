@@ -155,6 +155,8 @@ export default class CommandAstParser {
 		let isInterpolated = false;
 		const interpolated: InterpolatedStringExpression["values"] = [];
 
+		const start = this.ptr - 1;
+
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
@@ -180,11 +182,13 @@ export default class CommandAstParser {
 					this.pushChildNode(this.createNodeFromTokens({ quotes }));
 				}
 
-				break;
+				return;
 			}
 
 			this.tokens += this.pop();
 		}
+
+		throw `[CommandParser] Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`;
 	}
 
 	private parseComment() {
