@@ -98,7 +98,6 @@ export default class CommandAstInterpreter {
 					} else if (option.type === "switch") {
 						// Switch is basically just 'true' here.
 						options.set(node, createBooleanNode(true));
-						ptr++;
 					} else {
 						throw `[CommandInterpreter] Cannot handle type: ${option.type}`;
 					}
