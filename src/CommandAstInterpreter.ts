@@ -24,7 +24,7 @@ export interface CommandOption {
 }
 
 export interface ParsedNodeResult {
-	options: Map<Option, StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral | Identifier>;
+	options: Map<string, StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral | Identifier>;
 	args: Array<StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral | Identifier>;
 }
 
@@ -65,24 +65,24 @@ export default class CommandAstInterpreter {
 
 	private commandTypeHandler: Record<
 		CommandOption["type"],
-		(options: ParsedNodeResult["options"], optionNode: Option, nextNode: Node) => boolean
+		(options: ParsedNodeResult["options"], optionFullName: string, optionNode: Option, nextNode: Node) => boolean
 	> = {
-		string: (options, node, nextNode) => {
+		string: (options, optionFullName, node, nextNode) => {
 			this.expectOptionTypes(node, nextNode, CmdSyntaxKind.String, CmdSyntaxKind.InterpolatedString);
-			options.set(node, nextNode);
+			options.set(optionFullName, nextNode);
 			return true;
 		},
-		number: (options, node, nextNode) => {
+		number: (options, optionFullName, node, nextNode) => {
 			this.expectOptionType(node, nextNode, CmdSyntaxKind.Number);
-			options.set(node, nextNode);
+			options.set(optionFullName, nextNode);
 			return true;
 		},
-		boolean: (options, node, nextNode) => {
+		boolean: (options, optionFullName, node, nextNode) => {
 			this.expectOptionType(node, nextNode, CmdSyntaxKind.Boolean);
-			options.set(node, nextNode);
+			options.set(optionFullName, nextNode);
 			return true;
 		},
-		any: (options, node, nextNode) => {
+		any: (options, optionFullName, node, nextNode) => {
 			this.expectOptionTypes(
 				node,
 				nextNode,
@@ -92,12 +92,12 @@ export default class CommandAstInterpreter {
 				CmdSyntaxKind.InterpolatedString,
 				CmdSyntaxKind.Identifier,
 			);
-			options.set(node, nextNode);
+			options.set(optionFullName, nextNode);
 			return true;
 		},
-		var: (options, node, nextNode) => {
+		var: (options, optionFullName, node, nextNode) => {
 			this.expectOptionType(node, nextNode, CmdSyntaxKind.Identifier);
-			options.set(node, nextNode);
+			options.set(optionFullName, nextNode);
 			return true;
 		},
 		switch: (options, node, _) => {
@@ -141,13 +141,13 @@ export default class CommandAstInterpreter {
 					if (interpreterOptions.throwOnInvalidOption) {
 						throw `[CommandInterpreter] Invalid option for ${this.command}: ${node.flag}`;
 					} else {
-						this.commandTypeHandler.switch(options, node, children[ptr + 1]);
+						this.commandTypeHandler.switch(options, node.flag, node, children[ptr + 1]);
 					}
 				} else {
 					const typeHandler = this.commandTypeHandler[option.type];
 					if (typeHandler) {
 						const nextNode = children[ptr + 1];
-						typeHandler(options, node, nextNode) && ptr++;
+						typeHandler(options, option.name, node, nextNode) && ptr++;
 					} else {
 						throw `[CommandInterpreter] Cannot handle option type: ${option.type}`;
 					}

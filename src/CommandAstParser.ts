@@ -415,6 +415,8 @@ export default class CommandAstParser {
 			return `"${node.values.map((v) => this.render(v, false)).join(" ")}"`;
 		} else if (isNode(node, CmdSyntaxKind.Source)) {
 			return node.children.map((c) => this.render(c)).join("\n");
+		} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
+			return "";
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${CmdSyntaxKind[node.kind] ?? "unknown"}`;
