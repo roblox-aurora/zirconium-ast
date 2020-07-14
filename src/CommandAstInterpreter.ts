@@ -102,8 +102,13 @@ export default class CommandAstInterpreter {
 			} else {
 				// Handle arguments
 				if (!isNodeIn(node, [CmdSyntaxKind.CommandName, CmdSyntaxKind.EndOfStatement])) {
-					if (argIdx > this.args.size()) {
-						throw `[CommandInterpreter] Exceeding maximum arguments`;
+					if (this.args.size() === 0) {
+						// Allow any number of arguments if not specified
+						continue;
+					}
+
+					if (argIdx >= this.args.size()) {
+						throw `[CommandInterpreter] Exceeding argument list: [ ${this.args.join(", ")} ]`;
 					}
 
 					const arg = this.args[argIdx];
