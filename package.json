@@ -4,7 +4,7 @@
   "description": "Command parser that creates an AST for use by command frameworks on ROBLOX",
   "main": "out/init.lua",
   "scripts": {
-    "prepublishOnly": "rbxtsc-dev"
+    "prepare": "rbxtsc-dev"
   },
   "keywords": [],
   "author": "",
