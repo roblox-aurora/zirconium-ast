@@ -1,4 +1,4 @@
-/node_modules
-/out
-/include
+node_modules
+out
+include
 *.tsbuildinfo

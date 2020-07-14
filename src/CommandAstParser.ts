@@ -17,6 +17,7 @@ import {
 	getKindName,
 	createCommandSource,
 	CommandSource,
+	createBooleanNode,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -52,6 +53,10 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	interpolatedStrings: true,
 };
 
+interface NodeCreationOptions {
+	quotes?: string;
+}
+
 export default class CommandAstParser {
 	private ptr = 0;
 	private childNodes = new Array<Node>();
@@ -85,7 +90,7 @@ export default class CommandAstParser {
 		node !== undefined && this.childNodes.push(node);
 	}
 
-	private createNodeFromTokens() {
+	private createNodeFromTokens(options?: NodeCreationOptions) {
 		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
 		if (this.tokens !== "") {
@@ -95,8 +100,10 @@ export default class CommandAstParser {
 			} else {
 				if (this.tokens.match("^%d+$")[0] !== undefined) {
 					node = createNumberNode(tonumber(this.tokens)!);
+				} else if (this.tokens === "true" || this.tokens === "false") {
+					node = createBooleanNode(this.tokens === "true");
 				} else {
-					node = createStringNode(this.tokens.trim());
+					node = createStringNode(this.tokens.trim(), options?.quotes);
 				}
 			}
 			this.tokens = "";
@@ -144,7 +151,7 @@ export default class CommandAstParser {
 		}
 	}
 
-	private consumeStringLiteral(endChar = TOKEN.DOUBLE_QUOTE) {
+	private consumeStringLiteral(quotes = TOKEN.DOUBLE_QUOTE) {
 		let isInterpolated = false;
 		const interpolated: InterpolatedStringExpression["values"] = [];
 
@@ -155,22 +162,22 @@ export default class CommandAstParser {
 				this.pop();
 
 				isInterpolated = true;
-				const prev = this.createNodeFromTokens();
+				const prev = this.createNodeFromTokens({ quotes });
 				prev && interpolated.push(prev as StringLiteral);
 
 				const variable = this.parseVariable();
 				variable && interpolated.push(variable);
 				continue;
-			} else if (char === endChar) {
+			} else if (char === quotes) {
 				this.pop();
 
 				if (isInterpolated) {
-					const ending = this.createNodeFromTokens() as StringLiteral;
+					const ending = this.createNodeFromTokens({ quotes }) as StringLiteral;
 					ending && interpolated.push(ending);
 
 					this.pushChildNode(createInterpolatedString(...interpolated));
 				} else {
-					this.pushChildNode(this.createNodeFromTokens());
+					this.pushChildNode(this.createNodeFromTokens({ quotes }));
 				}
 
 				break;
@@ -244,7 +251,7 @@ export default class CommandAstParser {
 
 		// Don't allow a trailing &
 		if (isNode(lastNode, CmdSyntaxKind.Operator)) {
-			throw `Trailing ${lastNode.operator} is invalid`;
+			throw `[CommandParser] Trailing ${lastNode.operator} is invalid`;
 		}
 	}
 
@@ -334,7 +341,11 @@ export default class CommandAstParser {
 			if (isNode(node, CmdSyntaxKind.CommandName)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.name.text);
 			} else if (isNode(node, CmdSyntaxKind.String)) {
-				print(prefix, CmdSyntaxKind[node.kind], `"${node.text}"`);
+				print(
+					prefix,
+					CmdSyntaxKind[node.kind],
+					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : node.text,
+				);
 			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
@@ -384,7 +395,7 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.CommandName)) {
 			return node.name.text;
 		} else if (isNode(node, CmdSyntaxKind.String)) {
-			return formatString ? `"${node.text}"` : node.text;
+			return node.quotes !== undefined && formatString ? `${node.quotes}${node.text}${node.quotes}` : node.text;
 		} else if (isNode(node, CmdSyntaxKind.Number)) {
 			return tostring(node.value);
 		} else if (isNode(node, CmdSyntaxKind.Option)) {

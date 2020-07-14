@@ -3,6 +3,7 @@ export enum CmdSyntaxKind {
 	Source,
 	CommandStatement,
 	String,
+	Boolean,
 	StringLiteral,
 	CommandName,
 	Number,
@@ -53,7 +54,13 @@ export interface CommandName extends NodeBase {
 
 export interface StringLiteral extends NodeBase {
 	kind: CmdSyntaxKind.String;
+	quotes?: string;
 	text: string;
+}
+
+export interface BooleanLiteral extends NodeBase {
+	kind: CmdSyntaxKind.Boolean;
+	value: boolean;
 }
 
 export interface NumberLiteral extends NodeBase {
@@ -113,8 +120,8 @@ export function createCommandSource(children: CommandSource["children"]) {
 	return statement;
 }
 
-export function createStringNode(text: string): StringLiteral {
-	return { kind: CmdSyntaxKind.String, text };
+export function createStringNode(text: string, quotes?: string): StringLiteral {
+	return { kind: CmdSyntaxKind.String, text, quotes };
 }
 
 export function createNumberNode(value: number): NumberLiteral {
@@ -135,6 +142,10 @@ export function createOption(flag: string): Option {
 
 export function createOperator(operator: OperatorLiteral["operator"]): OperatorLiteral {
 	return { kind: CmdSyntaxKind.Operator, operator };
+}
+
+export function createBooleanNode(value: boolean): BooleanLiteral {
+	return { kind: CmdSyntaxKind.Boolean, value };
 }
 
 export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
@@ -175,6 +186,7 @@ interface NodeTypes {
 	[CmdSyntaxKind.Option]: Option;
 	[CmdSyntaxKind.Source]: CommandSource;
 	[CmdSyntaxKind.Identifier]: Identifier;
+	[CmdSyntaxKind.Boolean]: BooleanLiteral;
 	[CmdSyntaxKind.Number]: NumberLiteral;
 	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
 	[CmdSyntaxKind.BinaryExpression]: BinaryExpression;
