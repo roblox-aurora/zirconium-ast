@@ -258,7 +258,7 @@ export default class CommandAstParser {
 
 		// Don't allow a trailing &
 		if (isNode(lastNode, CmdSyntaxKind.Operator)) {
-			throw `[CommandParser] Trailing ${lastNode.operator} is invalid`;
+			throw `[CommandParser] Unexpected ${lastNode.operator}`;
 		}
 	}
 
