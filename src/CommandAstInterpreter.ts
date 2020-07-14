@@ -135,8 +135,6 @@ export default class CommandAstInterpreter {
 					}
 					args.push(node);
 					argIdx++;
-				} else {
-					print("ignore", getKindName(node.kind));
 				}
 			}
 
