@@ -68,7 +68,7 @@ export default class CommandAstParser {
 	private escaped = false;
 	private options: ParserOptions;
 
-	constructor(raw: string, options?: ParserOptions) {
+	constructor(raw: string, options?: Partial<ParserOptions>) {
 		this.raw = raw.trim();
 		this.options = { ...DEFAULT_PARSER_OPTIONS, ...options };
 	}
