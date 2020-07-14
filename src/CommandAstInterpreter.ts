@@ -13,18 +13,19 @@ import {
 	Node,
 	NodeKind,
 	NodeTypes,
+	Identifier,
 } from "./Nodes";
 
 type ValidationType = "string" | "number" | "boolean";
 export interface CommandOption {
 	name: string;
 	alias?: string[];
-	type: ValidationType | "switch";
+	type: ValidationType | "switch" | "any" | "var";
 }
 
 export interface ParsedNodeResult {
-	options: Map<Option, StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral>;
-	args: Array<StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral>;
+	options: Map<Option, StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral | Identifier>;
+	args: Array<StringLiteral | InterpolatedStringExpression | NumberLiteral | BooleanLiteral | Identifier>;
 }
 
 interface InterpreterOptions {
@@ -78,6 +79,24 @@ export default class CommandAstInterpreter {
 		},
 		boolean: (options, node, nextNode) => {
 			this.expectOptionType(node, nextNode, CmdSyntaxKind.Boolean);
+			options.set(node, nextNode);
+			return true;
+		},
+		any: (options, node, nextNode) => {
+			this.expectOptionTypes(
+				node,
+				nextNode,
+				CmdSyntaxKind.Boolean,
+				CmdSyntaxKind.String,
+				CmdSyntaxKind.Number,
+				CmdSyntaxKind.InterpolatedString,
+				CmdSyntaxKind.Identifier,
+			);
+			options.set(node, nextNode);
+			return true;
+		},
+		var: (options, node, nextNode) => {
+			this.expectOptionType(node, nextNode, CmdSyntaxKind.Identifier);
 			options.set(node, nextNode);
 			return true;
 		},
