@@ -207,7 +207,7 @@ export default class CommandAstParser {
 	private parseVariable() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
-			if (char === TOKEN.SPACE || char.match("%a")[0] === undefined) {
+			if (char === TOKEN.SPACE || char.match("[%w_]")[0] === undefined) {
 				if (this.tokens !== "") {
 					const identifier = createIdentifier(this.tokens);
 					this.tokens = "";
@@ -217,7 +217,7 @@ export default class CommandAstParser {
 				}
 			}
 
-			if (char.match("%w")[0] !== undefined) {
+			if (char.match("[%w_]")[0] !== undefined) {
 				this.tokens += this.pop();
 			} else {
 				throw `Variable cannot contain character: ${this.pop()}`;

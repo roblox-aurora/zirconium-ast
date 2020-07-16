@@ -4,7 +4,6 @@ export enum CmdSyntaxKind {
 	CommandStatement,
 	String,
 	Boolean,
-	StringLiteral,
 	CommandName,
 	Number,
 	Option,
@@ -165,6 +164,26 @@ export function createBinaryExpression(left: Node, op: BinaryExpression["op"], r
 	return expression;
 }
 
+/**
+ * Flattens an interpolated string into a regular string
+ * @param expression The interpolated string expression
+ * @param variables The variables for identifiers etc. to flatten with
+ */
+export function flattenInterpolatedString(
+	expression: InterpolatedStringExpression,
+	variables: Record<string, defined>,
+): StringLiteral {
+	let text = "";
+	for (const value of expression.values) {
+		if (isNode(value, CmdSyntaxKind.Identifier)) {
+			text += tostring(variables[value.name]);
+		} else {
+			text += value.text;
+		}
+	}
+	return { text, kind: CmdSyntaxKind.String };
+}
+
 export function createInterpolatedString(
 	...values: InterpolatedStringExpression["values"]
 ): InterpolatedStringExpression {
@@ -222,6 +241,14 @@ export function getKindName(kind: CmdSyntaxKind | undefined) {
 	}
 
 	return CmdSyntaxKind[kind];
+}
+
+export function getNodeKindName(node: Node) {
+	if (node === undefined) {
+		return "Unknown";
+	}
+
+	return getKindName(node.kind);
 }
 
 export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K): Array<NodeTypes[K]> {
