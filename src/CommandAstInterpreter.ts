@@ -42,7 +42,15 @@ export interface CommandSequenceResult {
 }
 
 interface InterpreterOptions {
+	/**
+	 * Throw on invalid options for commands
+	 */
 	throwOnInvalidOption: boolean;
+
+	/**
+	 * Allow the interpreter to work on undefined commands instead of erroring.
+	 */
+	allowUndefinedCommands: boolean;
 }
 
 export interface CommandDeclaration {
@@ -99,7 +107,7 @@ export default class CommandAstInterpreter {
 	public interpret(
 		node: CommandStatement | CommandSource | BinaryExpression,
 		variables: Record<string, defined> = { _VERSION: PKG_VERSION },
-		interpreterOptions: InterpreterOptions = { throwOnInvalidOption: true },
+		interpreterOptions: InterpreterOptions = { throwOnInvalidOption: true, allowUndefinedCommands: false },
 		results = new Array<CommandResult | CommandSequenceResult>(),
 	) {
 		if (isNode(node, CmdSyntaxKind.CommandStatement)) {
@@ -137,7 +145,7 @@ export default class CommandAstInterpreter {
 	public interpretCommandStatement(
 		statementNode: CommandStatement,
 		variables: Record<string, defined> = { _VERSION: PKG_VERSION },
-		interpreterOptions: InterpreterOptions = { throwOnInvalidOption: true },
+		interpreterOptions: InterpreterOptions,
 	) {
 		const parsedResult: CommandResult = {
 			kind: ResultKind.Command,
@@ -157,9 +165,17 @@ export default class CommandAstInterpreter {
 		const command = statementNode.command;
 		parsedResult.command = command.name.text;
 
-		const matchingCommand = this.commands.find((c) => c.command === command.name.text);
-		if (!matchingCommand) {
-			throw `[CommandInterpreter] Command ${command.name.text} is not declared`;
+		let matchingCommand = this.commands.find((c) => c.command === command.name.text);
+		if (matchingCommand === undefined) {
+			if (interpreterOptions.allowUndefinedCommands) {
+				matchingCommand = {
+					command: command.name.text,
+					options: [],
+					args: [],
+				};
+			} else {
+				throw `[CommandInterpreter] Command ${command.name.text} is not declared`;
+			}
 		}
 
 		const commandTypeHandler: Record<
