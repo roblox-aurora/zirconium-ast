@@ -44,6 +44,7 @@ interface ParserOptions {
 	variables: boolean;
 	options: boolean;
 	operators: boolean;
+	kebabArgumentsToCamelCase: boolean;
 	interpolatedStrings: boolean;
 }
 
@@ -52,6 +53,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	options: true,
 	operators: true,
 	interpolatedStrings: true,
+	kebabArgumentsToCamelCase: true,
 };
 
 interface NodeCreationOptions {
@@ -232,12 +234,33 @@ export default class CommandAstParser {
 		}
 	}
 
+	private kebabCaseToCamelCase(str: string) {
+		let result = "";
+		let i = 0;
+		while (i < str.size()) {
+			const char = str.sub(i, i);
+			if (char === "-") {
+				const nextChar = str.sub(i + 1, i + 1);
+				result += nextChar.upper();
+				i++;
+			} else {
+				result += char;
+			}
+			i++;
+		}
+		return result;
+	}
+
 	private parseLongKey() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			const valid = char.match("[%a%d_-]")[0];
 			if (char === TOKEN.SPACE || valid === undefined) {
 				if (this.tokens !== "") {
+					if (this.options.kebabArgumentsToCamelCase) {
+						this.tokens = this.kebabCaseToCamelCase(this.tokens);
+					}
+
 					this.childNodes.push(createOption(this.tokens));
 					this.tokens = "";
 				}
@@ -248,6 +271,10 @@ export default class CommandAstParser {
 		}
 
 		if (this.tokens !== "") {
+			if (this.options.kebabArgumentsToCamelCase) {
+				this.tokens = this.kebabCaseToCamelCase(this.tokens);
+			}
+
 			this.childNodes.push(createOption(this.tokens));
 			this.tokens = "";
 		}
