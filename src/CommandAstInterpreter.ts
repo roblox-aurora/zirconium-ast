@@ -17,9 +17,10 @@ import {
 } from "./Nodes";
 
 type ValidationType = "string" | "number" | "boolean";
-export interface CommandOption {
+export interface CommandInterpreterOption {
 	name: string;
 	alias?: string[];
+	default?: defined;
 	type: ValidationType | "switch" | "any" | "var";
 }
 
@@ -28,17 +29,17 @@ export const enum ResultKind {
 	SequentialCommands,
 }
 
-export interface CommandResult {
+export interface CommandInterpreterResult {
 	kind: ResultKind.Command;
 	command: string;
 	options: Map<string, defined>;
 	args: Array<defined>;
 }
 
-export interface CommandSequenceResult {
+export interface CommandInterpreterSequenceResult {
 	kind: ResultKind.SequentialCommands;
-	left: CommandResult;
-	right: CommandResult;
+	left: CommandInterpreterResult;
+	right: CommandInterpreterResult;
 }
 
 interface InterpreterOptions {
@@ -55,7 +56,7 @@ interface InterpreterOptions {
 
 export interface CommandDeclaration {
 	command: string;
-	options: CommandOption[];
+	options: CommandInterpreterOption[];
 	args: ValidationType[];
 }
 
@@ -64,11 +65,15 @@ export interface CommandDeclaration {
  *
  */
 export default class CommandAstInterpreter {
-	public static isCommand(result: CommandSequenceResult | CommandResult): result is CommandResult {
+	public static isCommand(
+		result: CommandInterpreterSequenceResult | CommandInterpreterResult,
+	): result is CommandInterpreterResult {
 		return result.kind === ResultKind.Command;
 	}
 
-	public static isCommandSeqence(result: CommandSequenceResult | CommandResult): result is CommandSequenceResult {
+	public static isCommandSeqence(
+		result: CommandInterpreterSequenceResult | CommandInterpreterResult,
+	): result is CommandInterpreterSequenceResult {
 		return result.kind === ResultKind.SequentialCommands;
 	}
 
@@ -108,16 +113,12 @@ export default class CommandAstInterpreter {
 		node: CommandStatement | CommandSource | BinaryExpression,
 		variables: Record<string, defined> = { _VERSION: PKG_VERSION },
 		interpreterOptions: InterpreterOptions = { throwOnInvalidOption: true, allowUndefinedCommands: false },
-		results = new Array<CommandResult | CommandSequenceResult>(),
+		results = new Array<CommandInterpreterResult | CommandInterpreterSequenceResult>(),
 	) {
 		if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 			results.push(this.interpretCommandStatement(node, variables, interpreterOptions));
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 			throw `[CommandInterpreter] Not yet supported!`;
-			// results.push({
-			// 	kind: ResultKind.SequentialCommands,
-			// 	left: this.interpret(node.left),
-			// });
 		} else if (isNode(node, CmdSyntaxKind.Source)) {
 			for (const statement of node.children) {
 				if (
@@ -147,7 +148,7 @@ export default class CommandAstInterpreter {
 		variables: Record<string, defined> = { _VERSION: PKG_VERSION },
 		interpreterOptions: InterpreterOptions,
 	) {
-		const parsedResult: CommandResult = {
+		const parsedResult: CommandInterpreterResult = {
 			kind: ResultKind.Command,
 			command: "",
 			options: new Map(),
@@ -179,7 +180,7 @@ export default class CommandAstInterpreter {
 		}
 
 		const commandTypeHandler: Record<
-			CommandOption["type"],
+			CommandInterpreterOption["type"],
 			(optionFullName: string, optionNode: Option, nextNode: Node) => boolean
 		> = {
 			string: (optionFullName, node, nextNode) => {
@@ -220,10 +221,17 @@ export default class CommandAstInterpreter {
 				return true;
 			},
 			switch: (node, _) => {
-				options.set(node, createBooleanNode(true));
+				options.set(node, createBooleanNode(true).value);
 				return false;
 			},
 		};
+
+		// Set defaults
+		for (const option of matchingCommand.options) {
+			if (option.default !== undefined) {
+				options.set(option.name, option.default);
+			}
+		}
 
 		let ptr = 0;
 		let argIdx = 0;
@@ -257,6 +265,14 @@ export default class CommandAstInterpreter {
 				if (!isNodeIn(node, [CmdSyntaxKind.CommandName, CmdSyntaxKind.EndOfStatement])) {
 					if (matchingCommand.args.size() === 0) {
 						// Allow any number of arguments if not specified
+						ptr++;
+						if (isNode(node, CmdSyntaxKind.String)) {
+							args.push(node.text);
+						} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
+							args.push(flattenInterpolatedString(node, variables).text);
+						} else if (isNode(node, CmdSyntaxKind.Number) || isNode(node, CmdSyntaxKind.Boolean)) {
+							args.push(node.value);
+						}
 						continue;
 					}
 
@@ -269,26 +285,38 @@ export default class CommandAstInterpreter {
 						if (!isNode(node, CmdSyntaxKind.String) && !isNode(node, CmdSyntaxKind.InterpolatedString)) {
 							throw `[CommandInterpreter] Invalid argument, expected String got ${getNodeKindName(node)}`;
 						}
+
+						if (isNode(node, CmdSyntaxKind.String)) {
+							args.push(node.text);
+						} else {
+							args.push(flattenInterpolatedString(node, variables).text);
+						}
 					} else if (arg === "boolean") {
 						if (!isNode(node, CmdSyntaxKind.Boolean)) {
 							throw `[CommandInterpreter] Invalid argument, expected Boolean got ${getNodeKindName(
 								node,
 							)}`;
 						}
+
+						args.push(node.value);
 					} else if (arg === "number") {
 						if (!isNode(node, CmdSyntaxKind.Number)) {
 							throw `[CommandInterpreter] Invalid argument, expected Number got ${getNodeKindName(node)}`;
 						}
+
+						args.push(node.value);
 					} else {
 						throw `[CommandInterpreter] Cannot handle type ${arg}`;
 					}
-					args.push(node);
+
 					argIdx++;
 				}
 			}
 
 			ptr++;
 		}
+
+		print("returnParsedResult");
 		return parsedResult;
 	}
 }
