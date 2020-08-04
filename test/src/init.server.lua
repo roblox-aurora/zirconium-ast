@@ -37,10 +37,10 @@ local parsed = CommandAstParser.new([[
 
     # Variable declaration
     $v = 20
-    $v = "Hello $v there"
+    $a = "Hello $playerName!"
 ]], {
     prefixExpressions = true,
     variableDeclarations = true
 }):Parse()
+print(CommandAstParser:render(parsed))
 CommandAstParser:prettyPrint({parsed})
--- print(CommandAstParser:render(parsed))
