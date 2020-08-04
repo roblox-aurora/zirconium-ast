@@ -28,7 +28,8 @@ local parsed = CommandAstParser.new([[
 
     # Support Interpolated Strings and Variables
     cmd $spartaName
-    echo "Hello, $player!"
+    echo "$player"
+    echo "Hello, $player you're awesome!"
 ]]):Parse()
 CommandAstParser:prettyPrint({parsed})
-print(CommandAstParser:render(parsed))
+-- print(CommandAstParser:render(parsed))

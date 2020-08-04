@@ -106,7 +106,7 @@ export default class CommandAstParser {
 				} else if (this.tokens === "true" || this.tokens === "false") {
 					node = createBooleanNode(this.tokens === "true");
 				} else {
-					node = createStringNode(this.tokens.trim(), options?.quotes);
+					node = createStringNode(this.tokens, options?.quotes);
 				}
 			}
 			this.tokens = "";
@@ -378,7 +378,7 @@ export default class CommandAstParser {
 				print(
 					prefix,
 					CmdSyntaxKind[node.kind],
-					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : node.text,
+					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``,
 				);
 			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
