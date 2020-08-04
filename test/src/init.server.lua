@@ -33,8 +33,13 @@ local parsed = CommandAstParser.new([[
 
     # PrefixExpression handling
     echo ~one @two %four ^five &six *seven !eight !"Testing lol" "~This should be a string"
+    echo ~$mee
+
+    # Variable declaration
+    v = 10
 ]], {
-    prefixExpressions = true
+    prefixExpressions = true,
+    variableDeclarations = true
 }):Parse()
 CommandAstParser:prettyPrint({parsed})
 -- print(CommandAstParser:render(parsed))

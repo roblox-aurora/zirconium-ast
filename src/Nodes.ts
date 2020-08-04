@@ -134,8 +134,8 @@ export function createNumberNode(value: number): NumberLiteral {
 	return { kind: CmdSyntaxKind.Number, value };
 }
 
-export function createCommandName(name: string): CommandName {
-	return { kind: CmdSyntaxKind.CommandName, name: { kind: CmdSyntaxKind.String, text: name } };
+export function createCommandName(name: StringLiteral): CommandName {
+	return { kind: CmdSyntaxKind.CommandName, name };
 }
 
 export function createIdentifier(name: string): Identifier {
@@ -234,6 +234,12 @@ export type Node = NodeTypes[keyof NodeTypes];
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
 	return node !== undefined && node.kind === type;
+}
+
+export function assertIsNode<K extends keyof NodeTypes>(node: Node, type: K): asserts node is NodeTypes[K] {
+	if (!isNode(node, type)) {
+		error(`Expected ${getKindName(type)}, got ${getNodeKindName(node)}`);
+	}
 }
 
 export function isNodeIn<K extends keyof NodeTypes>(node: Node, type: K[]): node is NodeTypes[K] {

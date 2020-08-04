@@ -22,8 +22,7 @@ import {
 	isValidPrefixCharacter,
 	createPrefixToken,
 	createPrefixExpression,
-	isNodeIn,
-	getNodeKindName,
+	assertIsNode,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -47,6 +46,7 @@ const enum TOKEN {
 
 interface ParserOptions {
 	variables: boolean;
+	variableDeclarations: boolean;
 	options: boolean;
 	operators: boolean;
 	/** @exprimental */
@@ -59,6 +59,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	variables: true,
 	options: true,
 	prefixExpressions: false,
+	variableDeclarations: false,
 	operators: true,
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
@@ -111,19 +112,19 @@ export default class CommandAstParser {
 		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
 		if (this.tokens !== "") {
-			if (!this.hasCommandName) {
-				node = createCommandName(this.tokens);
-				this.hasCommandName = true;
+			// if (!this.hasCommandName) {
+			// 	node = createCommandName(this.tokens);
+			// 	this.hasCommandName = true;
+			// } else {
+			if (this.tokens.match("^%d+$")[0] !== undefined) {
+				node = createNumberNode(tonumber(this.tokens)!);
+			} else if (this.tokens === "true" || this.tokens === "false") {
+				node = createBooleanNode(this.tokens === "true");
 			} else {
-				if (this.tokens.match("^%d+$")[0] !== undefined) {
-					node = createNumberNode(tonumber(this.tokens)!);
-				} else if (this.tokens === "true" || this.tokens === "false") {
-					node = createBooleanNode(this.tokens === "true");
-				} else {
-					// print("createStringNode", this.tokens);
-					node = createStringNode(this.tokens, options?.quotes);
-				}
+				// print("createStringNode", this.tokens);
+				node = createStringNode(this.tokens, options?.quotes);
 			}
+			//}
 
 			const prevNode = this.childNodes[this.childNodes.size() - 1];
 			if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
@@ -156,8 +157,12 @@ export default class CommandAstParser {
 		if (this.childNodes.size() > 0) {
 			this.childNodes.push(createEndOfStatementNode());
 
-			const nameNode = getSiblingNode(this.childNodes, CmdSyntaxKind.CommandName);
-			if (nameNode) {
+			const firstNode = this.getNodeAt(0, this.childNodes);
+
+			if (isNode(firstNode, CmdSyntaxKind.String)) {
+				const nameNode = createCommandName(firstNode);
+				this.childNodes[0] = nameNode;
+
 				const lastNode = this.getNodeAt(-1);
 				if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
 					const prevNode = this.getNodeAt(-2);
