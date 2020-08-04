@@ -244,7 +244,7 @@ export function isParentNode(node: Node): node is ParentNode {
 	return "children" in node;
 }
 
-const VALID_PREFIX_CHARS = ["~", "@", "%", "^", "&", "*", "!"] as const;
+const VALID_PREFIX_CHARS = ["~", "@", "%", "^", "*", "!"] as const;
 export function isValidPrefixCharacter(input: string): input is typeof VALID_PREFIX_CHARS[number] {
 	return VALID_PREFIX_CHARS.includes(input as typeof VALID_PREFIX_CHARS[number]);
 }

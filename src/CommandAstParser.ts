@@ -345,10 +345,6 @@ export default class CommandAstParser {
 			} else if (char === TOKEN.HASH) {
 				this.parseComment();
 				continue;
-			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions) {
-				this.pop();
-				this.pushChildNode(createPrefixToken(char));
-				continue;
 			} else if (this.options.variables && char === TOKEN.VARIABLE) {
 				this.pop();
 				const id = this.parseVariable();
@@ -363,6 +359,10 @@ export default class CommandAstParser {
 				this.pop();
 				this.createCommand();
 				this.nodes.push(createOperator(OperatorLiteralToken.Pipe));
+				continue;
+			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions) {
+				this.pop();
+				this.pushChildNode(createPrefixToken(char));
 				continue;
 			} else if (
 				this.options.options &&
