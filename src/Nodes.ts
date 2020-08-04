@@ -11,6 +11,8 @@ export enum CmdSyntaxKind {
 	Operator,
 	BinaryExpression,
 	InterpolatedString,
+	PrefixToken,
+	PrefixExpression,
 	EndOfStatement,
 }
 
@@ -78,6 +80,15 @@ export interface Option extends NodeBase {
 	right?: Node;
 }
 
+export interface PrefixToken extends NodeBase {
+	value: string;
+}
+
+export interface PrefixExpression extends NodeBase {
+	prefix: PrefixToken;
+	expression: StringLiteral | NumberLiteral | InterpolatedStringExpression | BooleanLiteral;
+}
+
 export interface Identifier extends NodeBase {
 	name: string;
 }
@@ -85,18 +96,6 @@ export interface Identifier extends NodeBase {
 export interface EndOfStatement extends NodeBase {
 	kind: CmdSyntaxKind.EndOfStatement;
 }
-
-// export type Node =
-// 	| StringLiteral
-// 	| OperatorLiteral
-// 	| BinaryExpression
-// 	| Identifier
-// 	| Option
-// 	| CommandName
-// 	| InterpolatedStringExpression
-// 	| CommandStatement
-// 	| NumberLiteral
-// 	| End;
 
 ////////////////////////////////////////////
 // Creators
@@ -109,6 +108,14 @@ export function createCommandStatement(command: CommandName, children: Node[]) {
 	}
 
 	return statement;
+}
+
+export function createPrefixToken(value: PrefixToken["value"]): PrefixToken {
+	return { kind: CmdSyntaxKind.PrefixToken, value };
+}
+
+export function createPrefixExpression(prefix: PrefixExpression["prefix"], expression: PrefixExpression["expression"]) {
+	return { kind: CmdSyntaxKind.PrefixExpression, prefix, expression };
 }
 
 export function createCommandSource(children: CommandSource["children"]) {
@@ -215,6 +222,8 @@ export interface NodeTypes {
 	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
 	[CmdSyntaxKind.BinaryExpression]: BinaryExpression;
 	[CmdSyntaxKind.Operator]: OperatorLiteral;
+	[CmdSyntaxKind.PrefixToken]: PrefixToken;
+	[CmdSyntaxKind.PrefixExpression]: PrefixExpression;
 }
 
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;
@@ -235,6 +244,11 @@ export function isParentNode(node: Node): node is ParentNode {
 	return "children" in node;
 }
 
+const VALID_PREFIX_CHARS = ["~", "@", "%", "^", "&", "*", "!"] as const;
+export function isValidPrefixCharacter(input: string): input is typeof VALID_PREFIX_CHARS[number] {
+	return VALID_PREFIX_CHARS.includes(input as typeof VALID_PREFIX_CHARS[number]);
+}
+
 export function getKindName(kind: CmdSyntaxKind | undefined) {
 	if (kind === undefined) {
 		return "<none>";
@@ -245,7 +259,7 @@ export function getKindName(kind: CmdSyntaxKind | undefined) {
 
 export function getNodeKindName(node: Node) {
 	if (node === undefined) {
-		return "Unknown";
+		return "<none>";
 	}
 
 	return getKindName(node.kind);

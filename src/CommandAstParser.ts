@@ -19,6 +19,11 @@ import {
 	CommandSource,
 	createBooleanNode,
 	createEndOfStatementNode,
+	isValidPrefixCharacter,
+	createPrefixToken,
+	createPrefixExpression,
+	isNodeIn,
+	getNodeKindName,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -44,6 +49,8 @@ interface ParserOptions {
 	variables: boolean;
 	options: boolean;
 	operators: boolean;
+	/** @exprimental */
+	prefixExpressions: boolean;
 	kebabArgumentsToCamelCase: boolean;
 	interpolatedStrings: boolean;
 }
@@ -51,6 +58,7 @@ interface ParserOptions {
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	variables: true,
 	options: true,
+	prefixExpressions: false,
 	operators: true,
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
@@ -93,6 +101,12 @@ export default class CommandAstParser {
 		node !== undefined && this.childNodes.push(node);
 	}
 
+	public popChildNode(offset = 1) {
+		const excludedNodes = this.childNodes.slice(this.childNodes.size() - 1 - offset, this.childNodes.size() - 1);
+		this.childNodes = [...this.childNodes.slice(0, this.childNodes.size() - offset)];
+		return excludedNodes;
+	}
+
 	private createNodeFromTokens(options?: NodeCreationOptions) {
 		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
@@ -106,19 +120,32 @@ export default class CommandAstParser {
 				} else if (this.tokens === "true" || this.tokens === "false") {
 					node = createBooleanNode(this.tokens === "true");
 				} else {
+					// print("createStringNode", this.tokens);
 					node = createStringNode(this.tokens, options?.quotes);
 				}
 			}
+
+			const prevNode = this.childNodes[this.childNodes.size() - 1];
+			if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
+				this.popChildNode(1); // pop off the prefix
+
+				if (!isNode(node, CmdSyntaxKind.CommandName)) {
+					node = createPrefixExpression(prevNode, node);
+				} else {
+					throw `[CommandParser] Cannot prefix CommandName`;
+				}
+			}
+
 			this.tokens = "";
 		}
 		return node;
 	}
 
-	private getNodeAt(offset = 0) {
+	private getNodeAt(offset = 0, nodes = this.nodes) {
 		if (offset < 0) {
-			return this.nodes[this.nodes.size() + offset];
+			return nodes[this.nodes.size() + offset];
 		} else {
-			return this.nodes[offset];
+			return nodes[offset];
 		}
 	}
 
@@ -322,6 +349,10 @@ export default class CommandAstParser {
 			} else if (char === TOKEN.HASH) {
 				this.parseComment();
 				continue;
+			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions) {
+				this.pop();
+				this.pushChildNode(createPrefixToken(char));
+				continue;
 			} else if (this.options.variables && char === TOKEN.VARIABLE) {
 				this.pop();
 				const id = this.parseVariable();
@@ -408,6 +439,12 @@ export default class CommandAstParser {
 			} else if (isNode(node, CmdSyntaxKind.Source)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				this.prettyPrint(node.children, prefix + "\t");
+				print(prefix, "}");
+			} else if (isNode(node, CmdSyntaxKind.PrefixToken)) {
+				print(prefix, CmdSyntaxKind[node.kind], node.value);
+			} else if (isNode(node, CmdSyntaxKind.PrefixExpression)) {
+				print(prefix, CmdSyntaxKind[node.kind], "{");
+				this.prettyPrint([node.prefix, node.expression], prefix + "\t");
 				print(prefix, "}");
 			}
 		}

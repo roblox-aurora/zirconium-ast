@@ -30,6 +30,11 @@ local parsed = CommandAstParser.new([[
     cmd $spartaName
     echo "$player"
     echo "Hello, $player you're awesome!"
-]]):Parse()
+
+    # PrefixExpression handling
+    echo ~one @two %four ^five &six *seven !eight !"Testing lol" "~This should be a string"
+]], {
+    prefixExpressions = true
+}):Parse()
 CommandAstParser:prettyPrint({parsed})
 -- print(CommandAstParser:render(parsed))
