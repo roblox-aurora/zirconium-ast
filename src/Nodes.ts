@@ -8,7 +8,7 @@ export enum CmdSyntaxKind {
 	Number,
 	Option,
 	Identifier,
-	Operator,
+	OperatorToken,
 	BinaryExpression,
 	InterpolatedString,
 	PrefixToken,
@@ -25,9 +25,9 @@ interface NodeBase {
 
 type OP = "&&" | "|";
 
-export interface OperatorLiteral extends NodeBase {
+export interface OperatorToken extends NodeBase {
 	operator: OP;
-	kind: CmdSyntaxKind.Operator;
+	kind: CmdSyntaxKind.OperatorToken;
 }
 
 export interface CommandSource extends NodeBase {
@@ -43,7 +43,7 @@ export interface InterpolatedStringExpression extends NodeBase {
 export interface BinaryExpression extends NodeBase {
 	kind: CmdSyntaxKind.BinaryExpression;
 	left: Node;
-	op: OP;
+	operator: OperatorToken;
 	right: Node;
 	children: Node[];
 }
@@ -146,8 +146,8 @@ export function createOption(flag: string): Option {
 	return { kind: CmdSyntaxKind.Option, flag };
 }
 
-export function createOperator(operator: OperatorLiteral["operator"]): OperatorLiteral {
-	return { kind: CmdSyntaxKind.Operator, operator };
+export function createOperator(operator: OperatorToken["operator"]): OperatorToken {
+	return { kind: CmdSyntaxKind.OperatorToken, operator };
 }
 
 export function createBooleanNode(value: boolean): BooleanLiteral {
@@ -158,11 +158,11 @@ export function createEndOfStatementNode(): EndOfStatement {
 	return { kind: CmdSyntaxKind.EndOfStatement };
 }
 
-export function createBinaryExpression(left: Node, op: BinaryExpression["op"], right: Node): BinaryExpression {
+export function createBinaryExpression(left: Node, op: OperatorToken, right: Node): BinaryExpression {
 	const expression: BinaryExpression = {
 		kind: CmdSyntaxKind.BinaryExpression,
 		left,
-		op,
+		operator: op,
 		right,
 		children: [left, right],
 	};
@@ -221,7 +221,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.Number]: NumberLiteral;
 	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
 	[CmdSyntaxKind.BinaryExpression]: BinaryExpression;
-	[CmdSyntaxKind.Operator]: OperatorLiteral;
+	[CmdSyntaxKind.OperatorToken]: OperatorToken;
 	[CmdSyntaxKind.PrefixToken]: PrefixToken;
 	[CmdSyntaxKind.PrefixExpression]: PrefixExpression;
 }

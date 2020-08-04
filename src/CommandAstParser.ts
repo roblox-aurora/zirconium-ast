@@ -159,15 +159,11 @@ export default class CommandAstParser {
 			const nameNode = getSiblingNode(this.childNodes, CmdSyntaxKind.CommandName);
 			if (nameNode) {
 				const lastNode = this.getNodeAt(-1);
-				if (isNode(lastNode, CmdSyntaxKind.Operator)) {
+				if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
 					const prevNode = this.getNodeAt(-2);
 					this.nodes = [
 						...this.nodes.slice(0, this.nodes.size() - 2),
-						createBinaryExpression(
-							prevNode,
-							lastNode.operator,
-							createCommandStatement(nameNode, this.childNodes),
-						),
+						createBinaryExpression(prevNode, lastNode, createCommandStatement(nameNode, this.childNodes)),
 					];
 				} else {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
@@ -311,7 +307,7 @@ export default class CommandAstParser {
 		const lastNode = this.getNodeAt(-1);
 
 		// Don't allow a trailing &
-		if (isNode(lastNode, CmdSyntaxKind.Operator)) {
+		if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
 			throw `[CommandParser] Unexpected ${lastNode.operator}`;
 		}
 	}
@@ -423,13 +419,13 @@ export default class CommandAstParser {
 				this.prettyPrint([node.right!], prefix + "\t");
 			} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.name);
-			} else if (isNode(node, CmdSyntaxKind.Operator)) {
+			} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.operator);
 			} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", ".operator", `"${node.op}"`);
+				// print(prefix + "\t", ".operator", `"${node.operator}"`);
 				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint([node.left, node.right], prefix + "\t");
+				this.prettyPrint([node.left, node.operator, node.right], prefix + "\t");
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
@@ -472,7 +468,7 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.Option)) {
 			return node.flag.size() > 1 ? `--${node.flag}` : `-${node.flag}`;
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
-			return this.render(node.left) + " " + node.op + " " + this.render(node.right);
+			return this.render(node.left) + " " + node.operator + " " + this.render(node.right);
 		} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 			return `$${node.name}`;
 		} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
