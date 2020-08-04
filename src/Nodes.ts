@@ -81,7 +81,7 @@ export interface Option extends NodeBase {
 }
 
 export interface PrefixToken extends NodeBase {
-	value: string;
+	value: typeof VALID_PREFIX_CHARS[number];
 }
 
 export interface PrefixExpression extends NodeBase {
