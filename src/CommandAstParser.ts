@@ -80,7 +80,6 @@ export default class CommandAstParser {
 	private ptr = 0;
 	private childNodes = new Array<Node>();
 	private nodes = new Array<Node>();
-	private hasCommandName = false;
 	private tokens = "";
 	private raw: string;
 	private escaped = false;
@@ -212,7 +211,6 @@ export default class CommandAstParser {
 				)}`;
 			}
 
-			this.hasCommandName = false;
 			this.childNodes = [];
 		}
 	}
@@ -446,12 +444,7 @@ export default class CommandAstParser {
 				this.pop();
 				this.pushChildNode(createPrefixToken(char));
 				continue;
-			} else if (
-				this.options.options &&
-				char === TOKEN.DASH &&
-				this.next(-1) === TOKEN.SPACE &&
-				this.hasCommandName
-			) {
+			} else if (this.options.options && char === TOKEN.DASH && this.next(-1) === TOKEN.SPACE) {
 				this.pop();
 				if (this.next() === TOKEN.DASH) {
 					this.pop();
