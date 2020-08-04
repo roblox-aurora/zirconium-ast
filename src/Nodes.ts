@@ -54,7 +54,13 @@ export interface VariableDeclaration extends NodeBase {
 	kind: CmdSyntaxKind.VariableDeclaration;
 	modifiers?: never;
 	identifier: Identifier;
-	expression: NumberLiteral | StringLiteral | InterpolatedStringExpression | BooleanLiteral | CommandStatement;
+	expression:
+		| NumberLiteral
+		| StringLiteral
+		| InterpolatedStringExpression
+		| BooleanLiteral
+		| CommandStatement
+		| Identifier;
 }
 
 export interface VariableStatement extends NodeBase {

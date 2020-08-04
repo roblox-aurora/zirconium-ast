@@ -115,34 +115,9 @@ export default class CommandAstParser {
 		return excludedNodes;
 	}
 
-	private transformCustomNodes(node: StringLiteral | BooleanLiteral | NumberLiteral | InterpolatedStringExpression) {
-		const prevNode = this.childNodes[this.childNodes.size() - 1];
-		if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
-			this.popChildNode(1); // pop off the prefix
-
-			if (!isNode(node, CmdSyntaxKind.CommandName)) {
-				return createPrefixExpression(prevNode, node);
-			} else {
-				throw `[CommandParser] Cannot prefix CommandName`;
-			}
-		} else if (isNode(prevNode, CmdSyntaxKind.OperatorToken) && prevNode.operator === "=") {
-			// If assignment
-			const prevPrevNode = this.childNodes[this.childNodes.size() - 2];
-			if (isNode(prevPrevNode, CmdSyntaxKind.Identifier)) {
-				this.popChildNode(2);
-
-				print("createVariableStatement", prevPrevNode.name, getNodeKindName(node));
-				return createVariableStatement(createVariableDeclaration(prevPrevNode, node));
-			} else {
-				throw `[CommandParser] Left-hand side of expression must be Identifier - got ${getNodeKindName(
-					prevPrevNode,
-				)}`;
-			}
-		} else {
-			return node;
-		}
-	}
-
+	/**
+	 * create and return a node from the read tokens
+	 */
 	private createNodeFromTokens(options?: NodeCreationOptions) {
 		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
@@ -170,6 +145,14 @@ export default class CommandAstParser {
 		}
 	}
 
+	/**
+	 * appends a statement node to the CommandSource
+	 *
+	 * ### CommandStatement
+	 * `cmd [--options ...] [arg1 arg2 ...]`
+	 * ### VariableDeclarationStatement
+	 * `$var = [expression]`
+	 */
 	private appendStatementNode() {
 		this.pushChildNode(this.createNodeFromTokens());
 
@@ -193,8 +176,6 @@ export default class CommandAstParser {
 				} else {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
 				}
-				// } else if (isNode(firstNode, CmdSyntaxKind.VariableStatement)) {
-				// 	this.nodes.push(firstNode);
 			} else if (isNode(firstNode, CmdSyntaxKind.Identifier)) {
 				const nextNode = this.getNodeAt(1, this.childNodes);
 				if (isNode(nextNode, CmdSyntaxKind.OperatorToken) && nextNode.operator === "=") {
@@ -204,7 +185,7 @@ export default class CommandAstParser {
 							isNodeIn(expressionNode, [
 								CmdSyntaxKind.String,
 								CmdSyntaxKind.InterpolatedString,
-								// CmdSyntaxKind.Identifier,
+								CmdSyntaxKind.Identifier,
 								CmdSyntaxKind.Number,
 								CmdSyntaxKind.Boolean,
 							])
@@ -220,7 +201,9 @@ export default class CommandAstParser {
 					throw `[CommandParser] Unexpected Identifier: '${firstNode.name}'`;
 				}
 			} else {
-				throw `Expected StringLiteral | VariableStatement, got ${getNodeKindName(firstNode)}`;
+				throw `[CommandParser] Expected valid CommandStatement or VariableStatement, cannot create command statement from ${getNodeKindName(
+					firstNode,
+				)}`;
 			}
 
 			this.hasCommandName = false;
@@ -228,7 +211,16 @@ export default class CommandAstParser {
 		}
 	}
 
-	private consumeStringLiteral(quotes = TOKEN.DOUBLE_QUOTE) {
+	/**
+	 * Parses long strings and interpolated strings
+	 *
+	 * `"Hello, World"` - Regular long string
+	 *
+	 * `"Hello $variable"` - Interpolated string
+	 *
+	 * @param quotes The type of quotes this string has
+	 */
+	private readLongString(quotes = TOKEN.DOUBLE_QUOTE) {
 		let isInterpolated = false;
 		const interpolated: InterpolatedStringExpression["values"] = [];
 
@@ -278,6 +270,10 @@ export default class CommandAstParser {
 		throw `[CommandParser] Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`;
 	}
 
+	/**
+	 * Parses comments
+	 * - basically removes comments
+	 */
 	private parseComment() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
@@ -288,6 +284,11 @@ export default class CommandAstParser {
 		}
 	}
 
+	/**
+	 * Parses variables
+	 *
+	 * `$varName` - For use in InterpolatedStrings, as arguments, or as the variable in VariableDeclarationStatements
+	 */
 	private parseVariable() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
@@ -316,6 +317,9 @@ export default class CommandAstParser {
 		}
 	}
 
+	/**
+	 * Internal utility for turning options like `--example-option` into `exampleOption`
+	 */
 	private kebabCaseToCamelCase(str: string) {
 		let result = "";
 		let i = 0;
@@ -333,7 +337,10 @@ export default class CommandAstParser {
 		return result;
 	}
 
-	private parseLongKey() {
+	/**
+	 * Parses long-form option names
+	 */
+	private parseLongOptionName() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			const valid = char.match("[%a%d_-]")[0];
@@ -371,7 +378,10 @@ export default class CommandAstParser {
 		}
 	}
 
-	private parseFlags() {
+	/**
+	 * Parse short-form option names
+	 */
+	private parseOptionLetter() {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.SPACE || char.match("[%a_]")[0] === undefined) {
@@ -382,6 +392,9 @@ export default class CommandAstParser {
 		}
 	}
 
+	/**
+	 * Parses the command source provided to this CommandAstParser
+	 */
 	public Parse(): CommandSource {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
@@ -436,16 +449,16 @@ export default class CommandAstParser {
 				this.pop();
 				if (this.next() === TOKEN.DASH) {
 					this.pop();
-					this.parseLongKey();
+					this.parseLongOptionName();
 					continue;
 				} else {
-					this.parseFlags();
+					this.parseOptionLetter();
 					continue;
 				}
 			} else if (char === TOKEN.DOUBLE_QUOTE || char === TOKEN.SINGLE_QUOTE) {
 				this.escaped = false;
 				this.pop();
-				this.consumeStringLiteral(char);
+				this.readLongString(char);
 				continue;
 			}
 
