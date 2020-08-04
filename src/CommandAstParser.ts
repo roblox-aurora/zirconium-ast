@@ -130,11 +130,17 @@ export default class CommandAstParser {
 				node = createStringNode(this.tokens, options?.quotes);
 			}
 
+			const prevNode = this.childNodes[this.childNodes.size() - 1];
+
+			if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
+				this.popChildNode(1);
+				node = createPrefixExpression(prevNode, node);
+			}
+
 			this.tokens = "";
-			return node;
 		}
 
-		return undefined;
+		return node;
 	}
 
 	private getNodeAt(offset = 0, nodes = this.nodes) {
