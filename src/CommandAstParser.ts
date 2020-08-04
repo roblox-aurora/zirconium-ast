@@ -80,6 +80,7 @@ export default class CommandAstParser {
 	private ptr = 0;
 	private childNodes = new Array<Node>();
 	private nodes = new Array<Node>();
+	private hasCommandName = false;
 	private tokens = "";
 	private raw: string;
 	private escaped = false;
@@ -211,6 +212,7 @@ export default class CommandAstParser {
 				)}`;
 			}
 
+			this.hasCommandName = false;
 			this.childNodes = [];
 		}
 	}
@@ -551,7 +553,7 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.Option)) {
 			return node.flag.size() > 1 ? `--${node.flag}` : `-${node.flag}`;
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
-			return this.render(node.left) + " " + node.operator + " " + this.render(node.right);
+			return this.render(node.left) + " " + this.render(node.operator) + " " + this.render(node.right);
 		} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 			return `$${node.name}`;
 		} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
@@ -568,6 +570,8 @@ export default class CommandAstParser {
 			return this.render(node.prefix) + this.render(node.expression);
 		} else if (isNode(node, CmdSyntaxKind.PrefixToken)) {
 			return node.value;
+		} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
+			return node.operator;
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${CmdSyntaxKind[node.kind] ?? "unknown"}`;
