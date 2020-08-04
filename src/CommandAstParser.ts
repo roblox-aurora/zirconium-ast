@@ -130,13 +130,6 @@ export default class CommandAstParser {
 				node = createStringNode(this.tokens, options?.quotes);
 			}
 
-			const prevNode = this.childNodes[this.childNodes.size() - 1];
-
-			if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
-				this.popChildNode(1);
-				node = createPrefixExpression(prevNode, node);
-			}
-
 			this.tokens = "";
 		}
 
@@ -172,6 +165,36 @@ export default class CommandAstParser {
 				const nameNode = createCommandName(firstNode);
 				this.childNodes[0] = nameNode;
 
+				// Do final statement "combining" actions
+				let i = 0;
+				const childNodes = new Array<Node>();
+				while (i < this.childNodes.size()) {
+					const node = this.childNodes[i];
+					if (isNode(node, CmdSyntaxKind.PrefixToken)) {
+						const nextNode = this.childNodes[i + 1];
+						if (
+							isNodeIn(nextNode, [
+								CmdSyntaxKind.String,
+								CmdSyntaxKind.InterpolatedString,
+								CmdSyntaxKind.Number,
+								CmdSyntaxKind.Boolean,
+							])
+						) {
+							childNodes.push(createPrefixExpression(node, nextNode));
+						} else {
+							if (nextNode === undefined) {
+								throw `[CommandParser] Unexpected trailing PrefixToken`;
+							}
+							throw `[CommandParser] Unexpected ${getNodeKindName(nextNode)} after PrefixToken`;
+						}
+						i += 2;
+					} else {
+						childNodes.push(node);
+						i++;
+					}
+				}
+				this.childNodes = childNodes;
+
 				const lastNode = this.getNodeAt(-1);
 				if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
 					const prevNode = this.getNodeAt(-2);
@@ -182,7 +205,7 @@ export default class CommandAstParser {
 				} else {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
 				}
-			} else if (isNode(firstNode, CmdSyntaxKind.Identifier)) {
+			} else if (isNode(firstNode, CmdSyntaxKind.Identifier) && this.options.variableDeclarations) {
 				const nextNode = this.getNodeAt(1, this.childNodes);
 				if (isNode(nextNode, CmdSyntaxKind.OperatorToken) && nextNode.operator === "=") {
 					const expressionNode = this.getNodeAt(2, this.childNodes);

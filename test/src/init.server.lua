@@ -33,6 +33,7 @@ local parsed = CommandAstParser.new([[
 
     # PrefixExpression handling
     echo ~one @two %four ^five &six *seven !eight !"Testing lol" "~This should be a string"
+    echo !"break me up, break me up $inside"
     echo ~$mee
 
     # Variable declaration
