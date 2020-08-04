@@ -30,15 +30,17 @@ local parsed = CommandAstParser.new([[
     cmd $spartaName
     echo "$player"
     echo "Hello, $player you're awesome!"
+    echo "Hello, please \"escape me\" thanks."
 
     # PrefixExpression handling
     echo ~one @two %four ^five &six *seven !eight !"Testing lol" "~This should be a string"
     echo !"break me up, break me up $inside"
-    echo ~$mee
+    echo ~\$saveMe \~$saveMeFromTheBugIveBecome # Since identifiers shouldn't mix with PrefixExpressions
 
     # Variable declaration
     $v = 20
     $a = "Hello $playerName!"
+    $c = What\ the\ hack\ is\ this
 ]], {
     prefixExpressions = true,
     variableDeclarations = true

@@ -430,6 +430,8 @@ export default class CommandAstParser {
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
 				if (!this.escaped) {
 					this.appendStatementNode();
+				} else {
+					this.pop();
 					this.escaped = false;
 				}
 
@@ -439,14 +441,14 @@ export default class CommandAstParser {
 				this.escaped = true;
 				this.pop();
 				continue;
-			} else if (char === TOKEN.SPACE) {
+			} else if (char === TOKEN.SPACE && !this.escaped) {
 				this.pushChildNode(this.createNodeFromTokens());
 				this.pop();
 				continue;
 			} else if (char === TOKEN.HASH) {
 				this.parseComment();
 				continue;
-			} else if (this.options.variables && char === TOKEN.VARIABLE && !this.escaped) {
+			} else if (this.options.variables && char === TOKEN.VARIABLE && !this.escaped && this.tokens === "") {
 				this.pop();
 				const id = this.parseVariable();
 				id && this.pushChildNode(id);
@@ -465,7 +467,7 @@ export default class CommandAstParser {
 				this.pop();
 				this.pushChildNode(createOperator("="));
 				continue;
-			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions) {
+			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions && !this.escaped) {
 				this.pop();
 				this.pushChildNode(createPrefixToken(char));
 				continue;
@@ -570,7 +572,9 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.CommandName)) {
 			return node.name.text;
 		} else if (isNode(node, CmdSyntaxKind.String)) {
-			return node.quotes !== undefined && formatString ? `${node.quotes}${node.text}${node.quotes}` : node.text;
+			return node.quotes !== undefined && formatString
+				? `${node.quotes}${node.text.gsub(node.quotes, `\\${node.quotes}`)[0]}${node.quotes}`
+				: node.text;
 		} else if (isNode(node, CmdSyntaxKind.Number)) {
 			return tostring(node.value);
 		} else if (isNode(node, CmdSyntaxKind.Option)) {
