@@ -23,6 +23,12 @@ import {
 	createPrefixToken,
 	createPrefixExpression,
 	assertIsNode,
+	createVariableStatement,
+	createVariableDeclaration,
+	getNodeKindName,
+	NumberLiteral,
+	BooleanLiteral,
+	Identifier,
 } from "./Nodes";
 
 const enum OperatorLiteralToken {
@@ -108,6 +114,34 @@ export default class CommandAstParser {
 		return excludedNodes;
 	}
 
+	private transformCustomNodes(node: StringLiteral | BooleanLiteral | NumberLiteral | InterpolatedStringExpression) {
+		const prevNode = this.childNodes[this.childNodes.size() - 1];
+		if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
+			this.popChildNode(1); // pop off the prefix
+
+			if (!isNode(node, CmdSyntaxKind.CommandName)) {
+				return createPrefixExpression(prevNode, node);
+			} else {
+				throw `[CommandParser] Cannot prefix CommandName`;
+			}
+		} else if (isNode(prevNode, CmdSyntaxKind.OperatorToken) && prevNode.operator === "=") {
+			// If assignment
+			const prevPrevNode = this.childNodes[this.childNodes.size() - 2];
+			if (isNode(prevPrevNode, CmdSyntaxKind.Identifier)) {
+				this.popChildNode(2);
+
+				print("createVariableStatement", prevPrevNode.name, getNodeKindName(node));
+				return createVariableStatement(createVariableDeclaration(prevPrevNode, node));
+			} else {
+				throw `[CommandParser] Left-hand side of expression must be Identifier - got ${getNodeKindName(
+					prevPrevNode,
+				)}`;
+			}
+		} else {
+			return node;
+		}
+	}
+
 	private createNodeFromTokens(options?: NodeCreationOptions) {
 		let node: Node | undefined;
 		// ensure non-empty, should skip whitespace
@@ -124,22 +158,12 @@ export default class CommandAstParser {
 				// print("createStringNode", this.tokens);
 				node = createStringNode(this.tokens, options?.quotes);
 			}
-			//}
-
-			const prevNode = this.childNodes[this.childNodes.size() - 1];
-			if (isNode(prevNode, CmdSyntaxKind.PrefixToken)) {
-				this.popChildNode(1); // pop off the prefix
-
-				if (!isNode(node, CmdSyntaxKind.CommandName)) {
-					node = createPrefixExpression(prevNode, node);
-				} else {
-					throw `[CommandParser] Cannot prefix CommandName`;
-				}
-			}
 
 			this.tokens = "";
+			return this.transformCustomNodes(node);
 		}
-		return node;
+
+		return undefined;
 	}
 
 	private getNodeAt(offset = 0, nodes = this.nodes) {
@@ -150,7 +174,7 @@ export default class CommandAstParser {
 		}
 	}
 
-	private createCommand() {
+	private appendStatementNode() {
 		this.pushChildNode(this.createNodeFromTokens());
 
 		// If we have child nodes, we'll work with what we have...
@@ -173,10 +197,11 @@ export default class CommandAstParser {
 				} else {
 					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
 				}
+			} else if (isNode(firstNode, CmdSyntaxKind.VariableStatement)) {
+				this.nodes.push(firstNode);
 			} else {
-				throw `Expected ${CmdSyntaxKind[CmdSyntaxKind.CommandName]}, got ${
-					CmdSyntaxKind[this.getNodeAt(-1).kind]
-				}`;
+				print(CommandAstParser.render(firstNode));
+				throw `Expected StringLiteral | VariableStatement, got ${getNodeKindName(firstNode)}}`;
 			}
 
 			this.hasCommandName = false;
@@ -193,7 +218,12 @@ export default class CommandAstParser {
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
-			if (char === TOKEN.VARIABLE && this.options.interpolatedStrings && this.options.variables) {
+			if (
+				char === TOKEN.VARIABLE &&
+				this.options.interpolatedStrings &&
+				this.options.variables &&
+				!this.escaped
+			) {
 				this.pop();
 
 				isInterpolated = true;
@@ -203,14 +233,18 @@ export default class CommandAstParser {
 				const variable = this.parseVariable();
 				variable && interpolated.push(variable);
 				continue;
-			} else if (char === quotes) {
+			} else if (char === "\\") {
+				this.pop();
+				this.escaped = true;
+				continue;
+			} else if (char === quotes && !this.escaped) {
 				this.pop();
 
 				if (isInterpolated) {
 					const ending = this.createNodeFromTokens({ quotes }) as StringLiteral;
 					ending && interpolated.push(ending);
 
-					this.pushChildNode(createInterpolatedString(...interpolated));
+					this.pushChildNode(this.transformCustomNodes(createInterpolatedString(...interpolated)));
 				} else {
 					this.pushChildNode(this.createNodeFromTokens({ quotes }));
 				}
@@ -218,6 +252,7 @@ export default class CommandAstParser {
 				return;
 			}
 
+			this.escaped = false;
 			this.tokens += this.pop();
 		}
 
@@ -333,7 +368,7 @@ export default class CommandAstParser {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
 				if (!this.escaped) {
-					this.createCommand();
+					this.appendStatementNode();
 					this.escaped = false;
 				}
 
@@ -350,20 +385,24 @@ export default class CommandAstParser {
 			} else if (char === TOKEN.HASH) {
 				this.parseComment();
 				continue;
-			} else if (this.options.variables && char === TOKEN.VARIABLE) {
+			} else if (this.options.variables && char === TOKEN.VARIABLE && !this.escaped) {
 				this.pop();
 				const id = this.parseVariable();
 				id && this.pushChildNode(id);
 				continue;
 			} else if (this.nextMatch(OperatorLiteralToken.And) && this.options.operators) {
 				this.pop(2);
-				this.createCommand();
+				this.appendStatementNode();
 				this.nodes.push(createOperator(OperatorLiteralToken.And));
 				continue;
 			} else if (this.nextMatch(OperatorLiteralToken.Pipe) && this.options.operators) {
 				this.pop();
-				this.createCommand();
+				this.appendStatementNode();
 				this.nodes.push(createOperator(OperatorLiteralToken.Pipe));
+				continue;
+			} else if (char === "=") {
+				this.pop();
+				this.pushChildNode(createOperator("="));
 				continue;
 			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions) {
 				this.pop();
@@ -396,7 +435,7 @@ export default class CommandAstParser {
 		}
 
 		this.pushChildNode(this.createNodeFromTokens());
-		this.createCommand();
+		this.appendStatementNode();
 
 		this.validateTree();
 		return createCommandSource(this.nodes);
@@ -447,6 +486,14 @@ export default class CommandAstParser {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				this.prettyPrint([node.prefix, node.expression], prefix + "\t");
 				print(prefix, "}");
+			} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
+				print(prefix, CmdSyntaxKind[node.kind], "{");
+				this.prettyPrint([node.identifier, node.expression], prefix + "\t");
+				print(prefix, "}");
+			} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
+				print(prefix, CmdSyntaxKind[node.kind], "{");
+				this.prettyPrint([node.declaration], prefix + "\t");
+				print(prefix, "}");
 			}
 		}
 	}
@@ -482,6 +529,10 @@ export default class CommandAstParser {
 			return node.children.map((c) => this.render(c)).join("\n");
 		} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
 			return "";
+		} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
+			return this.render(node.declaration);
+		} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
+			return this.render(node.identifier) + " = " + this.render(node.expression);
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${CmdSyntaxKind[node.kind] ?? "unknown"}`;

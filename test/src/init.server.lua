@@ -36,7 +36,8 @@ local parsed = CommandAstParser.new([[
     echo ~$mee
 
     # Variable declaration
-    v = 10
+    $v = 20
+    $v = "Hello $v there"
 ]], {
     prefixExpressions = true,
     variableDeclarations = true

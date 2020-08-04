@@ -14,6 +14,8 @@ export enum CmdSyntaxKind {
 	PrefixToken,
 	PrefixExpression,
 	EndOfStatement,
+	VariableDeclaration,
+	VariableStatement,
 }
 
 interface NodeBase {
@@ -23,7 +25,7 @@ interface NodeBase {
 	endPos?: number;
 }
 
-type OP = "&&" | "|";
+type OP = "&&" | "|" | "=";
 
 export interface OperatorToken extends NodeBase {
 	operator: OP;
@@ -46,6 +48,18 @@ export interface BinaryExpression extends NodeBase {
 	operator: OperatorToken;
 	right: Node;
 	children: Node[];
+}
+
+export interface VariableDeclaration extends NodeBase {
+	kind: CmdSyntaxKind.VariableDeclaration;
+	modifiers?: never;
+	identifier: Identifier;
+	expression: NumberLiteral | StringLiteral | InterpolatedStringExpression | BooleanLiteral | CommandStatement;
+}
+
+export interface VariableStatement extends NodeBase {
+	kind: CmdSyntaxKind.VariableStatement;
+	declaration: VariableDeclaration;
 }
 
 export interface CommandName extends NodeBase {
@@ -150,6 +164,17 @@ export function createOperator(operator: OperatorToken["operator"]): OperatorTok
 	return { kind: CmdSyntaxKind.OperatorToken, operator };
 }
 
+export function createVariableDeclaration(
+	identifier: Identifier,
+	expression: VariableDeclaration["expression"],
+): VariableDeclaration {
+	return { kind: CmdSyntaxKind.VariableDeclaration, identifier, expression };
+}
+
+export function createVariableStatement(declaration: VariableDeclaration): VariableStatement {
+	return { kind: CmdSyntaxKind.VariableStatement, declaration };
+}
+
 export function createBooleanNode(value: boolean): BooleanLiteral {
 	return { kind: CmdSyntaxKind.Boolean, value };
 }
@@ -224,6 +249,8 @@ export interface NodeTypes {
 	[CmdSyntaxKind.OperatorToken]: OperatorToken;
 	[CmdSyntaxKind.PrefixToken]: PrefixToken;
 	[CmdSyntaxKind.PrefixExpression]: PrefixExpression;
+	[CmdSyntaxKind.VariableDeclaration]: VariableDeclaration;
+	[CmdSyntaxKind.VariableStatement]: VariableStatement;
 }
 
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;
