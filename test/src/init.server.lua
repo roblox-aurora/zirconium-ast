@@ -45,6 +45,9 @@ local parsed = CommandAstParser.new([[
     # Nested commands
     echo $(caps "Hello, World!")
     $result = $(cmd --hello true) # yes
+    $result2 = $(
+        cmd2 --hello yes # allows multi-line
+    )
 ]], {
     prefixExpressions = true,
     variableDeclarations = true,
