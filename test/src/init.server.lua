@@ -41,9 +41,14 @@ local parsed = CommandAstParser.new([[
     $v = 20
     $a = "Hello $playerName!"
     $c = What\ the\ hack\ is\ this
+
+    # Nested commands
+    echo $(caps "Hello, World!")
+    $result = $(cmd --hello true) # yes
 ]], {
     prefixExpressions = true,
-    variableDeclarations = true
+    variableDeclarations = true,
+    nestedCommands = true
 }):Parse()
 print(CommandAstParser:render(parsed))
 CommandAstParser:prettyPrint({parsed})

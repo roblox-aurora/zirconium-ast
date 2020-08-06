@@ -63,6 +63,12 @@ Command AST
     $var = "Interpolated $value string"
     ```
 
+- Nested Expressions
+    ```bash
+    cmd $(cmd2 -k xyz)
+    $var = $(cmd2 -k xyz)
+    ```
+
 ## Ast Examples
 Simplified via `CommandAstParser.prettyPrint`
 
@@ -213,6 +219,20 @@ Simplified via `CommandAstParser.prettyPrint`
                 String "Hello "
                 Identifier otherVar
                 String "!"
+            }
+        }
+    }
+    ```
+
+    `$var = $(cmd xyz)`
+
+    ```
+    VariableDeclarationStatement {
+        VariableDeclaration {
+            Identifier var
+            CommandStatement {
+                CommandName cmd
+                String `xyz`
             }
         }
     }

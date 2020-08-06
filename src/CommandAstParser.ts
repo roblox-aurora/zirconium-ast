@@ -1,7 +1,6 @@
 import {
 	Node,
 	CmdSyntaxKind,
-	getSiblingNode,
 	createCommandStatement,
 	createCommandName,
 	createStringNode,
@@ -22,13 +21,9 @@ import {
 	isValidPrefixCharacter,
 	createPrefixToken,
 	createPrefixExpression,
-	assertIsNode,
 	createVariableStatement,
 	createVariableDeclaration,
 	getNodeKindName,
-	NumberLiteral,
-	BooleanLiteral,
-	Identifier,
 	isNodeIn,
 } from "./Nodes";
 
@@ -48,18 +43,23 @@ const enum TOKEN {
 	END = ";",
 	VARIABLE = "$",
 	HASH = "#",
+	BACKQUOTE = "`",
 	BACKSLASH = "\\",
 }
 
 interface ParserOptions {
 	variables: boolean;
-	variableDeclarations: boolean;
 	options: boolean;
 	operators: boolean;
-	/** @exprimental */
-	prefixExpressions: boolean;
 	kebabArgumentsToCamelCase: boolean;
 	interpolatedStrings: boolean;
+
+	/** @experimental */
+	variableDeclarations: boolean;
+	/** @experimental */
+	prefixExpressions: boolean;
+	/** @experimental */
+	innerExpressions: boolean;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
@@ -67,6 +67,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	options: true,
 	prefixExpressions: false,
 	variableDeclarations: false,
+	innerExpressions: false,
 	operators: true,
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
@@ -80,7 +81,6 @@ export default class CommandAstParser {
 	private ptr = 0;
 	private childNodes = new Array<Node>();
 	private nodes = new Array<Node>();
-	private hasCommandName = false;
 	private tokens = "";
 	private raw: string;
 	private escaped = false;
@@ -217,11 +217,16 @@ export default class CommandAstParser {
 								CmdSyntaxKind.Identifier,
 								CmdSyntaxKind.Number,
 								CmdSyntaxKind.Boolean,
+								CmdSyntaxKind.CommandStatement,
 							])
 						) {
 							this.nodes.push(
 								createVariableStatement(createVariableDeclaration(firstNode, expressionNode)),
 							);
+						} else {
+							throw `[CommandParser] Unexpected assignment of ${getNodeKindName(
+								expressionNode,
+							)} to variable`;
 						}
 					} else {
 						throw `[CommandParser] Expression expected: '${firstNode.name} ='`;
@@ -235,7 +240,6 @@ export default class CommandAstParser {
 				)}`;
 			}
 
-			this.hasCommandName = false;
 			this.childNodes = [];
 		}
 	}
@@ -421,6 +425,27 @@ export default class CommandAstParser {
 		}
 	}
 
+	public parseNestedCommand(escapeChar: string = TOKEN.BACKQUOTE) {
+		let cmd = "";
+		while (this.ptr < this.raw.size()) {
+			const char = this.next();
+
+			if (char === escapeChar) {
+				this.pop();
+				const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
+				if (!isNode(subCommand, CmdSyntaxKind.CommandStatement)) {
+					throw `[CommandParser] Unexpected ${getNodeKindName(subCommand)} when parsing nested command`;
+				}
+				return subCommand;
+			}
+
+			this.pop();
+			cmd += char;
+		}
+
+		throw `[CommandParser] Unexpected end of source when parsing nested command`;
+	}
+
 	/**
 	 * Parses the command source provided to this CommandAstParser
 	 */
@@ -450,6 +475,14 @@ export default class CommandAstParser {
 				continue;
 			} else if (this.options.variables && char === TOKEN.VARIABLE && !this.escaped && this.tokens === "") {
 				this.pop();
+
+				if (this.next() === "(" && this.options.innerExpressions) {
+					this.pop();
+					const subCommand = this.parseNestedCommand(")");
+					this.pushChildNode(subCommand);
+					continue;
+				}
+
 				const id = this.parseVariable();
 				id && this.pushChildNode(id);
 				continue;
@@ -599,9 +632,11 @@ export default class CommandAstParser {
 			return node.value;
 		} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
 			return node.operator;
+		} else if (isNode(node, CmdSyntaxKind.Boolean)) {
+			return tostring(node.value);
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
-			throw `Cannot Render SyntaxKind ${CmdSyntaxKind[node.kind] ?? "unknown"}`;
+			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;
 		}
 	}
 }
