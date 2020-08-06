@@ -48,7 +48,7 @@ local parsed = CommandAstParser.new([[
 ]], {
     prefixExpressions = true,
     variableDeclarations = true,
-    nestedCommands = true
+    innerExpressions = true
 }):Parse()
 print(CommandAstParser:render(parsed))
 CommandAstParser:prettyPrint({parsed})
