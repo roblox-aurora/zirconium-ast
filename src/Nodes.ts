@@ -16,6 +16,16 @@ export enum CmdSyntaxKind {
 	EndOfStatement,
 	VariableDeclaration,
 	VariableStatement,
+	Invalid,
+}
+
+export const enum NodeFlag {
+	None = 0,
+	NodeHasError = 1 << 16,
+}
+
+export function hasNodeFlag<F extends NodeFlag>(node: Node, flag: F) {
+	return node.flags !== undefined && (node.flags & flag) !== 0;
 }
 
 interface NodeBase {
@@ -23,6 +33,7 @@ interface NodeBase {
 	parent?: Node;
 	pos?: number;
 	endPos?: number;
+	flags: NodeFlag;
 }
 
 type OP = "&&" | "|" | "=";
@@ -48,6 +59,12 @@ export interface BinaryExpression extends NodeBase {
 	operator: OperatorToken;
 	right: Node;
 	children: Node[];
+}
+
+export interface InvalidNode extends NodeBase {
+	kind: CmdSyntaxKind.Invalid;
+	nodes?: Node[];
+	message: string;
 }
 
 export interface VariableDeclaration extends NodeBase {
@@ -76,6 +93,7 @@ export interface CommandName extends NodeBase {
 export interface StringLiteral extends NodeBase {
 	kind: CmdSyntaxKind.String;
 	quotes?: string;
+	isUnterminated?: boolean;
 	text: string;
 }
 
@@ -92,7 +110,20 @@ export interface NumberLiteral extends NodeBase {
 export interface CommandStatement extends NodeBase {
 	kind: CmdSyntaxKind.CommandStatement;
 	command: CommandName;
+	isUnterminated?: boolean;
 	children: Node[];
+}
+
+export interface NodeError {
+	node: Node;
+	message: string;
+}
+
+export function createNodeError(message: string, node: Node): NodeError {
+	return {
+		node,
+		message,
+	};
 }
 
 export interface Option extends NodeBase {
@@ -122,7 +153,7 @@ export interface EndOfStatement extends NodeBase {
 ////////////////////////////////////////////
 
 export function createCommandStatement(command: CommandName, children: Node[]) {
-	const statement: CommandStatement = { kind: CmdSyntaxKind.CommandStatement, command, children };
+	const statement: CommandStatement = { kind: CmdSyntaxKind.CommandStatement, command, children, flags: 0 };
 	for (const child of statement.children) {
 		child.parent = statement;
 	}
@@ -131,15 +162,18 @@ export function createCommandStatement(command: CommandName, children: Node[]) {
 }
 
 export function createPrefixToken(value: PrefixToken["value"]): PrefixToken {
-	return { kind: CmdSyntaxKind.PrefixToken, value };
+	return { kind: CmdSyntaxKind.PrefixToken, value, flags: 0 };
 }
 
-export function createPrefixExpression(prefix: PrefixExpression["prefix"], expression: PrefixExpression["expression"]) {
-	return { kind: CmdSyntaxKind.PrefixExpression, prefix, expression };
+export function createPrefixExpression(
+	prefix: PrefixExpression["prefix"],
+	expression: PrefixExpression["expression"],
+): PrefixExpression {
+	return { kind: CmdSyntaxKind.PrefixExpression, prefix, expression, flags: 0 };
 }
 
 export function createCommandSource(children: CommandSource["children"]) {
-	const statement: CommandSource = { kind: CmdSyntaxKind.Source, children };
+	const statement: CommandSource = { kind: CmdSyntaxKind.Source, children, flags: 0 };
 	for (const child of statement.children) {
 		child.parent = statement;
 	}
@@ -147,46 +181,50 @@ export function createCommandSource(children: CommandSource["children"]) {
 }
 
 export function createStringNode(text: string, quotes?: string): StringLiteral {
-	return { kind: CmdSyntaxKind.String, text, quotes };
+	return { kind: CmdSyntaxKind.String, text, quotes, flags: 0 };
 }
 
 export function createNumberNode(value: number): NumberLiteral {
-	return { kind: CmdSyntaxKind.Number, value };
+	return { kind: CmdSyntaxKind.Number, value, flags: 0 };
 }
 
 export function createCommandName(name: StringLiteral): CommandName {
-	return { kind: CmdSyntaxKind.CommandName, name };
+	return { kind: CmdSyntaxKind.CommandName, name, flags: 0 };
 }
 
 export function createIdentifier(name: string): Identifier {
-	return { kind: CmdSyntaxKind.Identifier, name };
+	return { kind: CmdSyntaxKind.Identifier, name, flags: 0 };
 }
 
 export function createOption(flag: string): Option {
-	return { kind: CmdSyntaxKind.Option, flag };
+	return { kind: CmdSyntaxKind.Option, flag, flags: 0 };
 }
 
 export function createOperator(operator: OperatorToken["operator"]): OperatorToken {
-	return { kind: CmdSyntaxKind.OperatorToken, operator };
+	return { kind: CmdSyntaxKind.OperatorToken, operator, flags: 0 };
 }
 
 export function createVariableDeclaration(
 	identifier: Identifier,
 	expression: VariableDeclaration["expression"],
 ): VariableDeclaration {
-	return { kind: CmdSyntaxKind.VariableDeclaration, identifier, expression };
+	return { kind: CmdSyntaxKind.VariableDeclaration, identifier, expression, flags: 0 };
 }
 
 export function createVariableStatement(declaration: VariableDeclaration): VariableStatement {
-	return { kind: CmdSyntaxKind.VariableStatement, declaration };
+	return { kind: CmdSyntaxKind.VariableStatement, declaration, flags: 0 };
 }
 
 export function createBooleanNode(value: boolean): BooleanLiteral {
-	return { kind: CmdSyntaxKind.Boolean, value };
+	return { kind: CmdSyntaxKind.Boolean, value, flags: 0 };
 }
 
 export function createEndOfStatementNode(): EndOfStatement {
-	return { kind: CmdSyntaxKind.EndOfStatement };
+	return { kind: CmdSyntaxKind.EndOfStatement, flags: 0 };
+}
+
+export function createInvalidNode(message: InvalidNode["message"], nodes: Node[]): InvalidNode {
+	return { kind: CmdSyntaxKind.Invalid, message, flags: NodeFlag.NodeHasError, nodes };
 }
 
 export function createBinaryExpression(left: Node, op: OperatorToken, right: Node): BinaryExpression {
@@ -196,6 +234,7 @@ export function createBinaryExpression(left: Node, op: OperatorToken, right: Nod
 		operator: op,
 		right,
 		children: [left, right],
+		flags: 0,
 	};
 	left.parent = expression;
 	right.parent = expression;
@@ -219,13 +258,13 @@ export function flattenInterpolatedString(
 			text += value.text;
 		}
 	}
-	return { text, kind: CmdSyntaxKind.String };
+	return { text, kind: CmdSyntaxKind.String, flags: 0 };
 }
 
 export function createInterpolatedString(
 	...values: InterpolatedStringExpression["values"]
 ): InterpolatedStringExpression {
-	const expression: InterpolatedStringExpression = { kind: CmdSyntaxKind.InterpolatedString, values };
+	const expression: InterpolatedStringExpression = { kind: CmdSyntaxKind.InterpolatedString, values, flags: 0 };
 	for (const value of values) {
 		value.parent = expression;
 	}
@@ -257,6 +296,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.PrefixExpression]: PrefixExpression;
 	[CmdSyntaxKind.VariableDeclaration]: VariableDeclaration;
 	[CmdSyntaxKind.VariableStatement]: VariableStatement;
+	[CmdSyntaxKind.Invalid]: InvalidNode;
 }
 
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;

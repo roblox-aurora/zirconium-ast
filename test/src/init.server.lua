@@ -4,7 +4,7 @@ local CommandAstParser = CommandLib.CommandAstParser
 local ast = CommandLib.ast
 local CommandAstInterpreter = CommandLib.CommandAstInterpreter
 
-local parsed = CommandAstParser.new([[
+--[[
     # Regular Commands
     cmd hello there
     cmd "Hello there"
@@ -58,11 +58,19 @@ local parsed = CommandAstParser.new([[
             or is it "?"
         )
     )
+]]
+
+local parsed = CommandAstParser.new([[
+    cmd "hello there lol" $("hi there")
+
 ]], {
     prefixExpressions = true,
     variableDeclarations = true,
     innerExpressions = true,
     nestingInnerExpressions = true
 }):Parse()
-print(CommandAstParser:render(parsed))
+
+
+-- print(CommandAstParser:render(parsed))
 CommandAstParser:prettyPrint({parsed})
+CommandAstParser:assert(parsed)

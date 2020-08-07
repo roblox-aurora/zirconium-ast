@@ -1,3 +1,4 @@
+/* eslint-disable roblox-ts/lua-truthiness */
 import {
 	Node,
 	CmdSyntaxKind,
@@ -25,7 +26,12 @@ import {
 	createVariableDeclaration,
 	getNodeKindName,
 	isNodeIn,
+	createInvalidNode,
+	NodeError,
+	NodeFlag,
+	createNodeError,
 } from "./Nodes";
+import { ValidationResult } from "./Validation";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -81,6 +87,9 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 
 interface NodeCreationOptions {
 	quotes?: string;
+	startPos?: number;
+	endPos?: number;
+	isUnterminated?: boolean;
 }
 
 export default class CommandAstParser {
@@ -90,10 +99,11 @@ export default class CommandAstParser {
 	private tokens = "";
 	private raw: string;
 	private escaped = false;
+	public readonly errors = new Array<string>();
 	private options: ParserOptions;
 
 	constructor(raw: string, options?: Partial<ParserOptions>) {
-		this.raw = raw.trim();
+		this.raw = raw;
 		this.options = { ...DEFAULT_PARSER_OPTIONS, ...options };
 	}
 
@@ -130,10 +140,17 @@ export default class CommandAstParser {
 		if (this.tokens !== "") {
 			if (this.tokens.match("^%d+$")[0] !== undefined) {
 				node = createNumberNode(tonumber(this.tokens)!);
+				node.pos = options?.startPos;
+				node.endPos = options?.endPos;
 			} else if (this.tokens === "true" || this.tokens === "false") {
 				node = createBooleanNode(this.tokens === "true");
+				node.pos = options?.startPos;
+				node.endPos = options?.endPos;
 			} else {
 				node = createStringNode(this.tokens, options?.quotes);
+				node.isUnterminated = options?.isUnterminated;
+				node.pos = options?.startPos;
+				node.endPos = options?.endPos;
 			}
 
 			this.tokens = "";
@@ -163,11 +180,11 @@ export default class CommandAstParser {
 
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
-			this.childNodes.push(createEndOfStatementNode());
-
 			const firstNode = this.getNodeAt(0, this.childNodes);
 
-			if (isNode(firstNode, CmdSyntaxKind.String)) {
+			if (isNode(firstNode, CmdSyntaxKind.String) && !firstNode.quotes) {
+				this.childNodes.push(createEndOfStatementNode());
+
 				const nameNode = createCommandName(firstNode);
 				this.childNodes[0] = nameNode;
 
@@ -230,20 +247,27 @@ export default class CommandAstParser {
 								createVariableStatement(createVariableDeclaration(firstNode, expressionNode)),
 							);
 						} else {
-							throw `[CommandParser] Unexpected assignment of ${getNodeKindName(
-								expressionNode,
-							)} to variable`;
+							// throw `[CommandParser] Unexpected assignment of ${getNodeKindName(
+							// 	expressionNode,
+							// )} to variable`;
 						}
 					} else {
-						throw `[CommandParser] Expression expected: '${firstNode.name} ='`;
+						this.nodes.push(
+							createInvalidNode(`Expression expected: '$${firstNode.name} ='`, [firstNode, nextNode]),
+						);
+						// throw `[CommandParser] Expression expected: '${firstNode.name} ='`;
 					}
 				} else {
-					throw `[CommandParser] Unexpected Identifier: '${firstNode.name}'`;
+					this.nodes.push(createInvalidNode(`Unexpected Identifier: ${firstNode.name}`, [firstNode]));
 				}
 			} else {
-				throw `[CommandParser] Expected valid CommandStatement or VariableStatement, cannot create command statement from ${getNodeKindName(
-					firstNode,
-				)}`;
+				// throw `[CommandParser] Expected valid CommandStatement or VariableStatement, cannot create command statement from ${getNodeKindName(
+				// 	firstNode,
+				// )}`;
+				for (const childNode of this.childNodes) {
+					childNode.flags = childNode.flags | NodeFlag.NodeHasError;
+					this.nodes.push(childNode);
+				}
 			}
 
 			this.childNodes = [];
@@ -299,14 +323,19 @@ export default class CommandAstParser {
 					this.pushChildNode(this.createNodeFromTokens({ quotes }));
 				}
 
-				return;
+				return true;
 			}
 
 			this.escaped = false;
 			this.tokens += this.pop();
 		}
 
-		throw `[CommandParser] Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`;
+		this.errors.push(`Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`);
+		this.pushChildNode(
+			this.createNodeFromTokens({ isUnterminated: true, quotes, startPos: start, endPos: this.ptr }),
+		);
+		this.childNodes[this.childNodes.size() - 1].flags = NodeFlag.NodeHasError;
+		return false;
 	}
 
 	/**
@@ -337,14 +366,14 @@ export default class CommandAstParser {
 					this.tokens = "";
 					return identifier;
 				} else {
-					throw `Invalid Variable Name: ${this.tokens}`;
+					// throw `Invalid Variable Name: ${this.tokens}`;
 				}
 			}
 
 			if (char.match("[%w_]")[0] !== undefined) {
 				this.tokens += this.pop();
 			} else {
-				throw `Variable cannot contain character: ${this.pop()}`;
+				// throw `Variable cannot contain character: ${this.pop()}`;
 			}
 		}
 
@@ -413,7 +442,7 @@ export default class CommandAstParser {
 
 		// Don't allow a trailing &
 		if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
-			throw `[CommandParser] Unexpected ${lastNode.operator}`;
+			// throw `[CommandParser] Unexpected ${lastNode.operator}`;
 		}
 	}
 
@@ -441,8 +470,12 @@ export default class CommandAstParser {
 				if (nestLevel === 0) {
 					this.pop();
 					const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
-					if (!isNode(subCommand, CmdSyntaxKind.CommandStatement)) {
-						throw `[CommandParser] Unexpected ${getNodeKindName(subCommand)} when parsing nested command`;
+					if (!isNodeIn(subCommand, [CmdSyntaxKind.CommandStatement])) {
+						this.nodes.push(
+							createInvalidNode(`Unexpected ${getNodeKindName(subCommand)} when parsing nested command`, [
+								subCommand,
+							]),
+						);
 					}
 					return subCommand;
 				} else {
@@ -450,7 +483,7 @@ export default class CommandAstParser {
 				}
 			} else if (escapeChar === ")" && char === "$" && this.next(1) === "(") {
 				if (!this.options.nestingInnerExpressions || nestLevel >= this.options.maxNestedInnerExpressions) {
-					throw `[CommandParser] Exceeding maximum expression nesting level of ${this.options.maxNestedInnerExpressions}`;
+					// throw `[CommandParser] Exceeding maximum expression nesting level of ${this.options.maxNestedInnerExpressions}`;
 				}
 				nestLevel++;
 			}
@@ -459,13 +492,14 @@ export default class CommandAstParser {
 			cmd += char;
 		}
 
-		throw `[CommandParser] Unexpected end of source when parsing nested command`;
+		// throw `[CommandParser] Unexpected end of source when parsing nested command`;
 	}
 
 	/**
 	 * Parses the command source provided to this CommandAstParser
 	 */
 	public Parse(): CommandSource {
+		let valid = true;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
@@ -533,7 +567,7 @@ export default class CommandAstParser {
 			} else if (char === TOKEN.DOUBLE_QUOTE || char === TOKEN.SINGLE_QUOTE) {
 				this.escaped = false;
 				this.pop();
-				this.readLongString(char);
+				valid = this.readLongString(char);
 				continue;
 			}
 
@@ -541,11 +575,72 @@ export default class CommandAstParser {
 			this.escaped = false;
 		}
 
-		this.pushChildNode(this.createNodeFromTokens());
+		if (valid) {
+			this.pushChildNode(this.createNodeFromTokens());
+		}
+
 		this.appendStatementNode();
 
 		this.validateTree();
 		return createCommandSource(this.nodes);
+	}
+
+	public static validate(
+		node: Node,
+		children = new Array<Node>(),
+		errorNodes = new Array<NodeError>(),
+	): ValidationResult {
+		if (isNode(node, CmdSyntaxKind.Source)) {
+			for (const child of node.children) {
+				if (isNodeIn(child, [CmdSyntaxKind.CommandStatement, CmdSyntaxKind.VariableStatement])) {
+					this.validate(child, node.children, errorNodes);
+				} else if (isNode(child, CmdSyntaxKind.Invalid)) {
+					this.validate(child, [], errorNodes);
+				} else {
+					errorNodes.push(createNodeError(`${this.render(child)} is not a valid expression`, child));
+				}
+			}
+		} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
+			for (const child of node.children) {
+				this.validate(child, node.children, errorNodes);
+			}
+		} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
+			const {
+				declaration: { expression, identifier },
+			} = node;
+			this.validate(identifier, [], errorNodes);
+			this.validate(expression, [], errorNodes);
+		} else if (isNode(node, CmdSyntaxKind.String)) {
+			if ((node.flags & NodeFlag.NodeHasError) !== 0) {
+				if (node.isUnterminated) {
+					errorNodes.push(
+						createNodeError(
+							`Unterminated string: ${node.quotes ?? ""}${node.text} [${node.pos ?? 0}:${
+								node.endPos ?? 0
+							}]`,
+							node,
+						),
+					);
+				}
+			}
+		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
+			errorNodes.push(createNodeError(node.message, node));
+		} else if ((node.flags & NodeFlag.NodeHasError) !== 0) {
+			errorNodes.push(createNodeError(`Node Error ${getNodeKindName(node)}`, node));
+		}
+		if (errorNodes.size() > 0) {
+			return { success: false, errorNodes };
+		}
+
+		return { success: true };
+	}
+
+	public static assert(node: Node) {
+		const result = this.validate(node);
+		if (!result.success) {
+			const firstNode = result.errorNodes[0];
+			throw `[CmdParser] [${firstNode.node.pos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
+		}
 	}
 
 	public static prettyPrint(nodes: Node[], prefix = "") {
@@ -558,6 +653,9 @@ export default class CommandAstParser {
 					CmdSyntaxKind[node.kind],
 					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``,
 				);
+				if (node.isUnterminated) {
+					print(prefix, "Unterminated String");
+				}
 			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
@@ -601,6 +699,12 @@ export default class CommandAstParser {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				this.prettyPrint([node.declaration], prefix + "\t");
 				print(prefix, "}");
+			} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
+				print(prefix, "EndOfStatement");
+			} else if (isNode(node, CmdSyntaxKind.Invalid)) {
+				print(prefix, "SYNTAX ERROR", node.message);
+			} else if (isNode(node, CmdSyntaxKind.Boolean)) {
+				print(prefix, CmdSyntaxKind[node.kind], node.value);
 			}
 		}
 	}
@@ -650,6 +754,8 @@ export default class CommandAstParser {
 			return node.operator;
 		} else if (isNode(node, CmdSyntaxKind.Boolean)) {
 			return tostring(node.value);
+		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
+			return "";
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;
