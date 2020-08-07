@@ -2,6 +2,8 @@ local TS = require(script.Parent.CommandLib.vendor.RuntimeLib)
 local CommandLib = TS.import(script, script.Parent, "CommandLib")
 local CommandAstParser = CommandLib.CommandAstParser
 local ast = CommandLib.ast
+local util = CommandLib.astUtility
+local prettyPrintNodes = util.prettyPrintNodes
 local CommandAstInterpreter = CommandLib.CommandAstInterpreter
 
 local parsed = CommandAstParser.new([[
@@ -64,5 +66,8 @@ local parsed = CommandAstParser.new([[
     innerExpressions = true,
     nestingInnerExpressions = true
 }):Parse()
+
+
 print(CommandAstParser:render(parsed))
-CommandAstParser:prettyPrint({parsed})
+prettyPrintNodes({parsed})
+CommandAstParser:assert(parsed)

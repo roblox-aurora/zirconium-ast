@@ -1,31 +1,31 @@
+/* eslint-disable roblox-ts/lua-truthiness */
+import { ValidationResult } from "./Validation";
+import { Node, InterpolatedStringExpression, StringLiteral, CommandSource, NodeError } from "./Nodes/NodeTypes";
 import {
-	Node,
-	CmdSyntaxKind,
-	createCommandStatement,
-	createCommandName,
-	createStringNode,
-	isNode,
 	createNumberNode,
-	createOption,
-	createIdentifier,
-	createOperator,
-	createBinaryExpression,
-	createInterpolatedString,
-	InterpolatedStringExpression,
-	StringLiteral,
-	getKindName,
-	createCommandSource,
-	CommandSource,
 	createBooleanNode,
+	createStringNode,
 	createEndOfStatementNode,
-	isValidPrefixCharacter,
-	createPrefixToken,
+	createCommandName,
 	createPrefixExpression,
+	createCommandStatement,
+	createBinaryExpression,
 	createVariableStatement,
 	createVariableDeclaration,
-	getNodeKindName,
-	isNodeIn,
-} from "./Nodes";
+	createInvalidNode,
+	createInterpolatedString,
+	createIdentifier,
+	createOption,
+	createInnerExpression,
+	createOperator,
+	createPrefixToken,
+	createCommandSource,
+	createNodeError,
+} from "./Nodes/Create";
+import { isNode, isValidPrefixCharacter, isPrefixableExpression, isAssignableExpression } from "./Nodes/Guards";
+import * as guard from "./Nodes/Guards";
+import { CmdSyntaxKind, NodeFlag } from "./Nodes";
+import { getNodeKindName, offsetNodePosition } from "./Nodes/Functions";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -81,6 +81,9 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 
 interface NodeCreationOptions {
 	quotes?: string;
+	startPos?: number;
+	endPos?: number;
+	isUnterminated?: boolean;
 }
 
 export default class CommandAstParser {
@@ -90,10 +93,11 @@ export default class CommandAstParser {
 	private tokens = "";
 	private raw: string;
 	private escaped = false;
+	public readonly errors = new Array<string>();
 	private options: ParserOptions;
 
 	constructor(raw: string, options?: Partial<ParserOptions>) {
-		this.raw = raw.trim();
+		this.raw = raw;
 		this.options = { ...DEFAULT_PARSER_OPTIONS, ...options };
 	}
 
@@ -130,10 +134,31 @@ export default class CommandAstParser {
 		if (this.tokens !== "") {
 			if (this.tokens.match("^%d+$")[0] !== undefined) {
 				node = createNumberNode(tonumber(this.tokens)!);
+				node.startPos = this.ptr - this.tokens.size() - 1;
+				node.endPos = this.ptr - 1;
+				node.rawText = this.tokens;
 			} else if (this.tokens === "true" || this.tokens === "false") {
 				node = createBooleanNode(this.tokens === "true");
+				node.startPos = this.ptr - this.tokens.size() - 1;
+				node.endPos = this.ptr - 1;
+				node.rawText = this.tokens;
 			} else {
 				node = createStringNode(this.tokens, options?.quotes);
+				node.isUnterminated = options?.isUnterminated;
+
+				if (options?.startPos !== undefined) {
+					node.startPos = options.startPos;
+				} else {
+					node.startPos = this.ptr - this.tokens.size();
+				}
+
+				if (options?.endPos !== undefined) {
+					node.endPos = options.endPos;
+				} else {
+					node.endPos = this.ptr - 1;
+				}
+
+				node.rawText = this.raw.sub(node.startPos, node.endPos);
 			}
 
 			this.tokens = "";
@@ -158,16 +183,16 @@ export default class CommandAstParser {
 	 * ### VariableDeclarationStatement
 	 * `$var = [expression]`
 	 */
-	private appendStatementNode() {
+	private appendStatementNode(startPos = 0, endPos = 0) {
 		this.pushChildNode(this.createNodeFromTokens());
 
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
-			this.childNodes.push(createEndOfStatementNode());
-
 			const firstNode = this.getNodeAt(0, this.childNodes);
 
-			if (isNode(firstNode, CmdSyntaxKind.String)) {
+			if (guard.isStringLiteral(firstNode) && firstNode.quotes === undefined) {
+				this.childNodes.push(createEndOfStatementNode());
+
 				const nameNode = createCommandName(firstNode);
 				this.childNodes[0] = nameNode;
 
@@ -176,22 +201,18 @@ export default class CommandAstParser {
 				const childNodes = new Array<Node>();
 				while (i < this.childNodes.size()) {
 					const node = this.childNodes[i];
-					if (isNode(node, CmdSyntaxKind.PrefixToken)) {
+					if (guard.isPrefixToken(node)) {
 						const nextNode = this.childNodes[i + 1];
-						if (
-							isNodeIn(nextNode, [
-								CmdSyntaxKind.String,
-								CmdSyntaxKind.InterpolatedString,
-								CmdSyntaxKind.Number,
-								CmdSyntaxKind.Boolean,
-							])
-						) {
+						if (isPrefixableExpression(nextNode)) {
 							childNodes.push(createPrefixExpression(node, nextNode));
 						} else {
 							if (nextNode === undefined) {
-								throw `[CommandParser] Unexpected trailing PrefixToken`;
+								childNodes.push(createInvalidNode(`Unexpected trailing PrefixToken`, node));
 							}
-							throw `[CommandParser] Unexpected ${getNodeKindName(nextNode)} after PrefixToken`;
+
+							childNodes.push(
+								createInvalidNode(`Unexpected ${getNodeKindName(nextNode)} after PrefixToken`, node),
+							);
 						}
 						i += 2;
 					} else {
@@ -202,30 +223,27 @@ export default class CommandAstParser {
 				this.childNodes = childNodes;
 
 				const lastNode = this.getNodeAt(-1);
-				if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
+				if (guard.isOperatorToken(lastNode)) {
 					const prevNode = this.getNodeAt(-2);
-					this.nodes = [
-						...this.nodes.slice(0, this.nodes.size() - 2),
-						createBinaryExpression(prevNode, lastNode, createCommandStatement(nameNode, this.childNodes)),
-					];
+					const nextNode = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
+					nextNode.rawText = this.raw.sub(startPos, endPos);
+
+					const expression = createBinaryExpression(prevNode, lastNode, nextNode, prevNode.startPos, endPos);
+					// eslint-disable-next-line roblox-ts/lua-truthiness
+					expression.rawText = this.raw.sub(prevNode.startPos ?? 0, endPos);
+
+					this.nodes = [...this.nodes.slice(0, this.nodes.size() - 2), expression];
 				} else {
-					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
+					const statement = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
+					statement.rawText = this.raw.sub(startPos, endPos);
+					this.nodes.push(statement);
 				}
-			} else if (isNode(firstNode, CmdSyntaxKind.Identifier) && this.options.variableDeclarations) {
+			} else if (guard.isIdentifier(firstNode) && this.options.variableDeclarations) {
 				const nextNode = this.getNodeAt(1, this.childNodes);
-				if (isNode(nextNode, CmdSyntaxKind.OperatorToken) && nextNode.operator === "=") {
+				if (guard.isOperatorToken(nextNode) && nextNode.operator === "=") {
 					const expressionNode = this.getNodeAt(2, this.childNodes);
 					if (expressionNode) {
-						if (
-							isNodeIn(expressionNode, [
-								CmdSyntaxKind.String,
-								CmdSyntaxKind.InterpolatedString,
-								CmdSyntaxKind.Identifier,
-								CmdSyntaxKind.Number,
-								CmdSyntaxKind.Boolean,
-								CmdSyntaxKind.CommandStatement,
-							])
-						) {
+						if (isAssignableExpression(expressionNode)) {
 							this.nodes.push(
 								createVariableStatement(createVariableDeclaration(firstNode, expressionNode)),
 							);
@@ -235,15 +253,16 @@ export default class CommandAstParser {
 							)} to variable`;
 						}
 					} else {
-						throw `[CommandParser] Expression expected: '${firstNode.name} ='`;
+						this.nodes.push(createInvalidNode(`Expression expected: '$${firstNode.name} ='`, nextNode));
 					}
 				} else {
-					throw `[CommandParser] Unexpected Identifier: '${firstNode.name}'`;
+					this.nodes.push(createInvalidNode(`Unexpected Identifier: ${firstNode.name}`, firstNode));
 				}
 			} else {
-				throw `[CommandParser] Expected valid CommandStatement or VariableStatement, cannot create command statement from ${getNodeKindName(
-					firstNode,
-				)}`;
+				for (const childNode of this.childNodes) {
+					childNode.flags = childNode.flags | NodeFlag.NodeHasError;
+					this.nodes.push(childNode);
+				}
 			}
 
 			this.childNodes = [];
@@ -274,13 +293,17 @@ export default class CommandAstParser {
 				this.options.variables &&
 				!this.escaped
 			) {
+				isInterpolated = true;
 				this.pop();
 
-				isInterpolated = true;
-				const prev = this.createNodeFromTokens({ quotes });
+				const prev = this.createNodeFromTokens({
+					quotes,
+					startPos: this.ptr - this.tokens.size() - 1,
+					endPos: this.ptr - 2,
+				});
 				prev && interpolated.push(prev as StringLiteral);
 
-				const variable = this.parseVariable();
+				const variable = this.parseVariable(true);
 				variable && interpolated.push(variable);
 				continue;
 			} else if (char === "\\") {
@@ -291,22 +314,35 @@ export default class CommandAstParser {
 				this.pop();
 
 				if (isInterpolated) {
-					const ending = this.createNodeFromTokens({ quotes }) as StringLiteral;
+					const ending = this.createNodeFromTokens({
+						quotes,
+						startPos: this.ptr - this.tokens.size() - 1,
+						endPos: this.ptr - 2,
+					}) as StringLiteral;
 					ending && interpolated.push(ending);
 
-					this.pushChildNode(createInterpolatedString(...interpolated));
+					const interpolatedNode = createInterpolatedString(...interpolated);
+					interpolatedNode.startPos = start;
+					interpolatedNode.endPos = this.ptr - 1;
+					interpolatedNode.rawText = this.raw.sub(start, this.ptr - 1);
+					this.pushChildNode(interpolatedNode);
 				} else {
-					this.pushChildNode(this.createNodeFromTokens({ quotes }));
+					this.pushChildNode(this.createNodeFromTokens({ quotes, startPos: start, endPos: this.ptr - 1 }));
 				}
 
-				return;
+				return true;
 			}
 
 			this.escaped = false;
 			this.tokens += this.pop();
 		}
 
-		throw `[CommandParser] Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`;
+		this.errors.push(`Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`);
+		this.pushChildNode(
+			this.createNodeFromTokens({ isUnterminated: true, quotes, startPos: start, endPos: this.ptr }),
+		);
+		this.childNodes[this.childNodes.size() - 1].flags = NodeFlag.NodeHasError;
+		return false;
 	}
 
 	/**
@@ -328,32 +364,34 @@ export default class CommandAstParser {
 	 *
 	 * `$varName` - For use in InterpolatedStrings, as arguments, or as the variable in VariableDeclarationStatements
 	 */
-	private parseVariable() {
+	private parseVariable(isInterpolated = false) {
+		const start = this.ptr - 1;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
-			if (char === TOKEN.SPACE || char.match("[%w_]")[0] === undefined) {
-				if (this.tokens !== "") {
-					const identifier = createIdentifier(this.tokens);
-					this.tokens = "";
-					return identifier;
-				} else {
-					throw `Invalid Variable Name: ${this.tokens}`;
-				}
+			if (
+				char === TOKEN.SPACE ||
+				char === "=" ||
+				char === "\n" ||
+				(isInterpolated && char.match("[^A-Za-z0-9_]")[0])
+			) {
+				const identifier = createIdentifier(this.tokens);
+				identifier.startPos = start;
+				identifier.endPos = start + this.tokens.size();
+				identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+				this.tokens = "";
+				return identifier;
 			}
 
-			if (char.match("[%w_]")[0] !== undefined) {
-				this.tokens += this.pop();
-			} else {
-				throw `Variable cannot contain character: ${this.pop()}`;
-			}
+			this.tokens += this.pop();
 		}
 
-		// In case it's last in the index
-		if (this.tokens !== "") {
-			const identifier = createIdentifier(this.tokens);
-			this.tokens = "";
-			return identifier;
-		}
+		const identifier = createIdentifier(this.tokens);
+		identifier.startPos = start;
+		identifier.endPos = start + this.tokens.size();
+		identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+		this.tokens = "";
+		return identifier;
+		//}
 	}
 
 	/**
@@ -408,15 +446,6 @@ export default class CommandAstParser {
 		}
 	}
 
-	private validateTree() {
-		const lastNode = this.getNodeAt(-1);
-
-		// Don't allow a trailing &
-		if (isNode(lastNode, CmdSyntaxKind.OperatorToken)) {
-			throw `[CommandParser] Unexpected ${lastNode.operator}`;
-		}
-	}
-
 	/**
 	 * Parse short-form option names
 	 */
@@ -434,6 +463,7 @@ export default class CommandAstParser {
 	public parseNestedCommand(escapeChar: string = TOKEN.BACKQUOTE) {
 		let cmd = "";
 		let nestLevel = 0;
+		const start = this.ptr;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
@@ -441,16 +471,29 @@ export default class CommandAstParser {
 				if (nestLevel === 0) {
 					this.pop();
 					const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
-					if (!isNode(subCommand, CmdSyntaxKind.CommandStatement)) {
-						throw `[CommandParser] Unexpected ${getNodeKindName(subCommand)} when parsing nested command`;
+					if (!guard.isCommandStatement(subCommand)) {
+						this.nodes.push(
+							createInvalidNode(
+								`Invalid inner expression: '${CommandAstParser.render(subCommand)}' (${getNodeKindName(
+									subCommand,
+								)}) - Only a CommandStatement is allowed.`,
+								subCommand,
+								start,
+								start + cmd.size() - 1,
+							),
+						);
+					} else {
+						const inner = createInnerExpression(subCommand, start, start + cmd.size());
+						inner.rawText = this.raw.sub(start, start + cmd.size() - 1);
+						offsetNodePosition(inner.expression, start);
+						return inner;
 					}
-					return subCommand;
 				} else {
 					nestLevel--;
 				}
 			} else if (escapeChar === ")" && char === "$" && this.next(1) === "(") {
 				if (!this.options.nestingInnerExpressions || nestLevel >= this.options.maxNestedInnerExpressions) {
-					throw `[CommandParser] Exceeding maximum expression nesting level of ${this.options.maxNestedInnerExpressions}`;
+					// throw `[CommandParser] Exceeding maximum expression nesting level of ${this.options.maxNestedInnerExpressions}`;
 				}
 				nestLevel++;
 			}
@@ -459,18 +502,21 @@ export default class CommandAstParser {
 			cmd += char;
 		}
 
-		throw `[CommandParser] Unexpected end of source when parsing nested command`;
+		// throw `[CommandParser] Unexpected end of source when parsing nested command`;
 	}
 
 	/**
 	 * Parses the command source provided to this CommandAstParser
 	 */
 	public Parse(): CommandSource {
+		let valid = true;
+		let statementBegin = 0;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
 				if (!this.escaped) {
-					this.appendStatementNode();
+					this.appendStatementNode(statementBegin, this.ptr - 1);
+					statementBegin = this.ptr + 1;
 				} else {
 					this.pop();
 					this.escaped = false;
@@ -495,7 +541,7 @@ export default class CommandAstParser {
 				if (this.next() === "(" && this.options.innerExpressions) {
 					this.pop();
 					const subCommand = this.parseNestedCommand(")");
-					this.pushChildNode(subCommand);
+					subCommand && this.pushChildNode(subCommand);
 					continue;
 				}
 
@@ -504,17 +550,19 @@ export default class CommandAstParser {
 				continue;
 			} else if (this.nextMatch(OperatorLiteralToken.And) && this.options.operators) {
 				this.pop(2);
-				this.appendStatementNode();
+				this.appendStatementNode(statementBegin, this.ptr - 1);
+				statementBegin = this.ptr + 1;
 				this.nodes.push(createOperator(OperatorLiteralToken.And));
 				continue;
 			} else if (this.nextMatch(OperatorLiteralToken.Pipe) && this.options.operators) {
 				this.pop();
-				this.appendStatementNode();
+				this.appendStatementNode(statementBegin, this.ptr - 1);
+				statementBegin = this.ptr + 1;
 				this.nodes.push(createOperator(OperatorLiteralToken.Pipe));
 				continue;
 			} else if (char === "=") {
 				this.pop();
-				this.pushChildNode(createOperator("="));
+				this.pushChildNode(createOperator("=", this.ptr - 1));
 				continue;
 			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions && !this.escaped) {
 				this.pop();
@@ -533,7 +581,7 @@ export default class CommandAstParser {
 			} else if (char === TOKEN.DOUBLE_QUOTE || char === TOKEN.SINGLE_QUOTE) {
 				this.escaped = false;
 				this.pop();
-				this.readLongString(char);
+				valid = this.readLongString(char);
 				continue;
 			}
 
@@ -541,67 +589,95 @@ export default class CommandAstParser {
 			this.escaped = false;
 		}
 
-		this.pushChildNode(this.createNodeFromTokens());
-		this.appendStatementNode();
+		if (valid) {
+			this.pushChildNode(this.createNodeFromTokens());
+		}
 
-		this.validateTree();
-		return createCommandSource(this.nodes);
+		this.appendStatementNode(statementBegin, this.ptr - 1);
+
+		const source = createCommandSource(this.nodes);
+		source.startPos = 0;
+		source.endPos = this.ptr - 1;
+		source.rawText = this.raw;
+		return source;
 	}
 
-	public static prettyPrint(nodes: Node[], prefix = "") {
-		for (const node of nodes) {
-			if (isNode(node, CmdSyntaxKind.CommandName)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.name.text);
-			} else if (isNode(node, CmdSyntaxKind.String)) {
-				print(
-					prefix,
-					CmdSyntaxKind[node.kind],
-					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``,
-				);
-			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint(node.children, prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.Number)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.value);
-			} else if (isNode(node, CmdSyntaxKind.Option)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.flag);
-				this.prettyPrint([node.right!], prefix + "\t");
-			} else if (isNode(node, CmdSyntaxKind.Identifier)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.name);
-			} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.operator);
-			} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				// print(prefix + "\t", ".operator", `"${node.operator}"`);
-				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint([node.left, node.operator, node.right], prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint(node.values, prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.Source)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint(node.children, prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.PrefixToken)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.value);
-			} else if (isNode(node, CmdSyntaxKind.PrefixExpression)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.prefix, node.expression], prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.identifier, node.expression], prefix + "\t");
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.declaration], prefix + "\t");
-				print(prefix, "}");
+	public static validate(node: Node, errorNodes = new Array<NodeError>()): ValidationResult {
+		if (guard.isSource(node)) {
+			for (const child of node.children) {
+				if (guard.isValidExpression(child)) {
+					this.validate(child, errorNodes);
+				} else if (guard.isNode(child, CmdSyntaxKind.Invalid)) {
+					this.validate(child, errorNodes);
+				} else {
+					print(getNodeKindName(child));
+					errorNodes.push(createNodeError(`'${this.render(child)}' is not a valid expression`, child));
+				}
 			}
+		} else if (guard.isCommandStatement(node)) {
+			for (const child of node.children) {
+				this.validate(child, errorNodes);
+			}
+		} else if (guard.isVariableStatement(node)) {
+			const {
+				declaration: { expression, identifier },
+			} = node;
+			this.validate(identifier, errorNodes);
+			this.validate(expression, errorNodes);
+		} else if (guard.isStringLiteral(node)) {
+			if ((node.flags & NodeFlag.NodeHasError) !== 0) {
+				if (node.isUnterminated) {
+					errorNodes.push(
+						createNodeError(
+							`Unterminated string: ${node.quotes !== undefined ?? ""}${node.text} [${
+								node.startPos !== undefined ?? 0
+							}:${node.endPos !== undefined ?? 0}]`,
+							node,
+						),
+					);
+				}
+			}
+		} else if (guard.isIdentifier(node)) {
+			if (!node.name.match(guard.VALID_VARIABLE_NAME)[0]) {
+				if (node.name.match("^%d")[0]) {
+					errorNodes.push(
+						createNodeError(
+							`Invalid variable name '${node.name}' - variable must start with a letter or an underscore`,
+							node,
+						),
+					);
+				} else {
+					const invalidChars = node.name.match("[^A-z0-9_]")[0];
+					errorNodes.push(
+						createNodeError(
+							`Invalid variable name '${node.name}' - contains invalid character '${invalidChars}'`,
+							node,
+						),
+					);
+				}
+			}
+		} else if (guard.isNode(node, CmdSyntaxKind.CommandName)) {
+			const { text } = node.name;
+			if (!text.match(guard.VALID_COMMAND_NAME)[0]) {
+				errorNodes.push(createNodeError(`Invalid command name '${text}'`, node.name));
+			}
+		} else if (guard.isInvalid(node)) {
+			errorNodes.push(createNodeError(node.message, node));
+		} else if ((node.flags & NodeFlag.NodeHasError) !== 0) {
+			errorNodes.push(createNodeError(`Node Error ${getNodeKindName(node)}`, node));
+		}
+		if (errorNodes.size() > 0) {
+			return { success: false, errorNodes };
+		}
+
+		return { success: true };
+	}
+
+	public static assert(node: Node) {
+		const result = this.validate(node);
+		if (!result.success) {
+			const firstNode = result.errorNodes[0];
+			throw `[CmdParser] [${firstNode.node.startPos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
 		}
 	}
 
@@ -617,7 +693,10 @@ export default class CommandAstParser {
 		}
 
 		if (isNode(node, CmdSyntaxKind.CommandStatement)) {
-			return node.children.map((c) => this.render(c)).join(" ");
+			return node.children
+				.map((c) => this.render(c))
+				.filter((c) => c !== "")
+				.join(" ");
 		} else if (isNode(node, CmdSyntaxKind.CommandName)) {
 			return node.name.text;
 		} else if (isNode(node, CmdSyntaxKind.String)) {
@@ -650,6 +729,10 @@ export default class CommandAstParser {
 			return node.operator;
 		} else if (isNode(node, CmdSyntaxKind.Boolean)) {
 			return tostring(node.value);
+		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
+			return this.render(node.expression);
+		} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
+			return "$(" + this.render(node.expression) + ")";
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;

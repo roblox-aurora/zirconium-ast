@@ -29,6 +29,7 @@
 				"tabWidth": 4,
 				"useTabs": true
 			}
-		]
+		],
+		"roblox-ts/lua-truthiness": "off"
 	}
 }

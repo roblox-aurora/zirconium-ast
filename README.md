@@ -69,6 +69,47 @@ Command AST
     $var = $(cmd2 -k xyz)
     ```
 
+## Validation
+Validation is done via `CommmandAstParser.validate` - and returns an object, depending on the value of `success`.
+
+```ts
+type ValidationSuccess = { success: true }
+type ValidationError = { success: false, errorNodes: NodeError[] }
+```
+
+`errorNodes` is an array of errors, which are
+```ts
+interface NodeError {
+	node: Node;
+	message: string;
+}
+```
+
+Through this, you can get information about what nodes are causing errors, by using `node.startPos` and `node.endPos` for the position of the offending text, and `message` for the error message.
+
+Inside `CommandAstParser` there is a simple `assert` function that is like the following:
+
+```ts
+assert(node: Node) {
+    const result = this.validate(node);
+    if (!result.success) {
+        const firstNode = result.errorNodes[0];
+        throw `[CmdParser] [${firstNode.node.startPos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
+    }
+}
+```
+
+Which will, for example in the case of 
+```bash
+$x =
+```
+will give
+```diff
+- [CmdParser] [3:3] Expression expected: '$x ='
+```
+Which means at character 3, (`=`) there is an error - in this case, there is no expression.
+
+
 ## Ast Examples
 Simplified via `CommandAstParser.prettyPrint`
 
@@ -224,15 +265,33 @@ Simplified via `CommandAstParser.prettyPrint`
     }
     ```
 
+- Inner Expressions
+
+    `cmd $(cmd2 --something else)`
+    ```
+    CommandStatement {
+        CommandName cmd
+        InnerExpression {
+            CommandStatement {
+                CommandName cmd2
+                Option something
+                String else
+            }
+        }
+    }
+    ```
+
     `$var = $(cmd xyz)`
 
     ```
     VariableDeclarationStatement {
         VariableDeclaration {
             Identifier var
-            CommandStatement {
-                CommandName cmd
-                String `xyz`
+            InnerExpression {
+                CommandStatement {
+                    CommandName cmd
+                    String `xyz`
+                }
             }
         }
     }
