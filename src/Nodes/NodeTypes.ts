@@ -1,4 +1,4 @@
-import { CmdSyntaxKind, NodeFlag } from "./Enum";
+import type { CmdSyntaxKind, NodeFlag } from "./Enum";
 
 export interface NodeTypes {
 	[CmdSyntaxKind.CommandStatement]: CommandStatement;
@@ -116,13 +116,6 @@ export interface InnerExpression extends NodeBase {
 export interface NodeError {
 	node: Node;
 	message: string;
-}
-
-export function createNodeError(message: string, node: Node): NodeError {
-	return {
-		node,
-		message,
-	};
 }
 
 export interface Option extends NodeBase {
