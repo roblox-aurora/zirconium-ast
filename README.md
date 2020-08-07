@@ -101,7 +101,7 @@ assert(node: Node) {
 
 Which will, for example in the case of 
 ```bash
-$x=
+$x =
 ```
 will give
 ```diff
