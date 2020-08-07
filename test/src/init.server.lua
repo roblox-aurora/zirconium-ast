@@ -61,8 +61,10 @@ local CommandAstInterpreter = CommandLib.CommandAstInterpreter
 ]]
 
 local parsed = CommandAstParser.new([[
-    $x = $(hi --there dave)
+    $x = $(hi --there dave $(come --again))
     $x = 10
+    binary --hell | expressions $(nested)
+    $x = $(cmd testing $(cmd 20))
 ]], {
     prefixExpressions = true,
     variableDeclarations = true,

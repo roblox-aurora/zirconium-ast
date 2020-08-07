@@ -118,7 +118,7 @@ export interface CommandStatement extends NodeBase {
 
 export interface InnerExpression extends NodeBase {
 	kind: CmdSyntaxKind.InnerExpression;
-	expression: CommandStatement | BinaryExpression;
+	expression: CommandStatement | BinaryExpression | VariableStatement;
 }
 
 export interface NodeError {
@@ -159,8 +159,15 @@ export interface EndOfStatement extends NodeBase {
 // Creators
 ////////////////////////////////////////////
 
-export function createCommandStatement(command: CommandName, children: Node[]) {
-	const statement: CommandStatement = { kind: CmdSyntaxKind.CommandStatement, command, children, flags: 0 };
+export function createCommandStatement(command: CommandName, children: Node[], startPos?: number, endPos?: number) {
+	const statement: CommandStatement = {
+		kind: CmdSyntaxKind.CommandStatement,
+		command,
+		children,
+		flags: 0,
+		pos: startPos,
+		endPos,
+	};
 	for (const child of statement.children) {
 		child.parent = statement;
 	}
@@ -243,10 +250,25 @@ export function createEndOfStatementNode(): EndOfStatement {
 }
 
 export function createInvalidNode(message: InvalidNode["message"], nodes: Node[]): InvalidNode {
-	return { kind: CmdSyntaxKind.Invalid, message, flags: NodeFlag.NodeHasError, nodes };
+	const firstNode = nodes[0];
+	const lastNode = nodes[nodes.size() - 1];
+
+	return {
+		kind: CmdSyntaxKind.Invalid,
+		message,
+		flags: NodeFlag.NodeHasError,
+		pos: firstNode.pos,
+		endPos: lastNode.endPos,
+	};
 }
 
-export function createBinaryExpression(left: Node, op: OperatorToken, right: Node): BinaryExpression {
+export function createBinaryExpression(
+	left: Node,
+	op: OperatorToken,
+	right: Node,
+	startPos?: number,
+	endPos?: number,
+): BinaryExpression {
 	const expression: BinaryExpression = {
 		kind: CmdSyntaxKind.BinaryExpression,
 		left,
@@ -254,6 +276,8 @@ export function createBinaryExpression(left: Node, op: OperatorToken, right: Nod
 		right,
 		children: [left, right],
 		flags: 0,
+		pos: startPos,
+		endPos,
 	};
 	left.parent = expression;
 	right.parent = expression;
@@ -295,7 +319,7 @@ export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind) {
 	return nodes.find((f) => f.kind === kind);
 }
 
-export function shiftNodes(node: Node, offset: number) {
+export function offsetNodePosition(node: Node, offset: number) {
 	if (node.pos !== undefined && node.endPos !== undefined) {
 		node.pos += offset;
 		node.endPos += offset;
@@ -303,7 +327,7 @@ export function shiftNodes(node: Node, offset: number) {
 
 	if ("children" in node) {
 		for (const child of node.children) {
-			shiftNodes(child, offset);
+			offsetNodePosition(child, offset);
 		}
 	}
 }
