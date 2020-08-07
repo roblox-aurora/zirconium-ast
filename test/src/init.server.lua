@@ -54,7 +54,9 @@ local parsed = CommandAstParser.new([[
         )
     )
     $result4 = $(
-        cursed --nesting $()
+        cursed --nesting $(
+            or is it "?"
+        )
     )
 ]], {
     prefixExpressions = true,
