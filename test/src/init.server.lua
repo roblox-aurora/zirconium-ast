@@ -60,10 +60,7 @@ local CommandAstInterpreter = CommandLib.CommandAstInterpreter
     )
 ]]
 
-local parsed = CommandAstParser.new([[
-    cmd "hello there lol" $("hi there")
-
-]], {
+local parsed = CommandAstParser.new([[cmd "token $string";cmd two --yeah okay;nested $(test --hello yes)]], {
     prefixExpressions = true,
     variableDeclarations = true,
     innerExpressions = true,
@@ -71,6 +68,6 @@ local parsed = CommandAstParser.new([[
 }):Parse()
 
 
--- print(CommandAstParser:render(parsed))
-CommandAstParser:prettyPrint({parsed})
+print(CommandAstParser:render(parsed))
+CommandAstParser:prettyPrint({parsed}, nil, true)
 CommandAstParser:assert(parsed)

@@ -30,6 +30,8 @@ import {
 	NodeError,
 	NodeFlag,
 	createNodeError,
+	createInnerExpression,
+	shiftNodes,
 } from "./Nodes";
 import { ValidationResult } from "./Validation";
 
@@ -140,17 +142,31 @@ export default class CommandAstParser {
 		if (this.tokens !== "") {
 			if (this.tokens.match("^%d+$")[0] !== undefined) {
 				node = createNumberNode(tonumber(this.tokens)!);
-				node.pos = options?.startPos;
-				node.endPos = options?.endPos;
+				node.pos = this.ptr - this.tokens.size() - 1;
+				node.endPos = this.ptr - 1;
+				node.rawText = this.tokens;
 			} else if (this.tokens === "true" || this.tokens === "false") {
 				node = createBooleanNode(this.tokens === "true");
-				node.pos = options?.startPos;
-				node.endPos = options?.endPos;
+				node.pos = this.ptr - this.tokens.size() - 1;
+				node.endPos = this.ptr - 1;
+				node.rawText = this.tokens;
 			} else {
 				node = createStringNode(this.tokens, options?.quotes);
 				node.isUnterminated = options?.isUnterminated;
-				node.pos = options?.startPos;
-				node.endPos = options?.endPos;
+
+				if (options?.startPos !== undefined) {
+					node.pos = options.startPos;
+				} else {
+					node.pos = this.ptr - this.tokens.size();
+				}
+
+				if (options?.endPos !== undefined) {
+					node.endPos = options.endPos;
+				} else {
+					node.endPos = this.ptr - 1;
+				}
+
+				node.rawText = this.raw.sub(node.pos, node.endPos);
 			}
 
 			this.tokens = "";
@@ -175,7 +191,7 @@ export default class CommandAstParser {
 	 * ### VariableDeclarationStatement
 	 * `$var = [expression]`
 	 */
-	private appendStatementNode() {
+	private appendStatementNode(startPos = 0, endPos = 0) {
 		this.pushChildNode(this.createNodeFromTokens());
 
 		// If we have child nodes, we'll work with what we have...
@@ -226,7 +242,11 @@ export default class CommandAstParser {
 						createBinaryExpression(prevNode, lastNode, createCommandStatement(nameNode, this.childNodes)),
 					];
 				} else {
-					this.nodes.push(createCommandStatement(nameNode, this.childNodes));
+					const statement = createCommandStatement(nameNode, this.childNodes);
+					statement.pos = startPos;
+					statement.endPos = endPos;
+					statement.rawText = this.raw.sub(startPos, endPos);
+					this.nodes.push(statement);
 				}
 			} else if (isNode(firstNode, CmdSyntaxKind.Identifier) && this.options.variableDeclarations) {
 				const nextNode = this.getNodeAt(1, this.childNodes);
@@ -298,10 +318,14 @@ export default class CommandAstParser {
 				this.options.variables &&
 				!this.escaped
 			) {
+				isInterpolated = true;
 				this.pop();
 
-				isInterpolated = true;
-				const prev = this.createNodeFromTokens({ quotes });
+				const prev = this.createNodeFromTokens({
+					quotes,
+					startPos: this.ptr - this.tokens.size() - 1,
+					endPos: this.ptr - 2,
+				});
 				prev && interpolated.push(prev as StringLiteral);
 
 				const variable = this.parseVariable();
@@ -315,12 +339,20 @@ export default class CommandAstParser {
 				this.pop();
 
 				if (isInterpolated) {
-					const ending = this.createNodeFromTokens({ quotes }) as StringLiteral;
+					const ending = this.createNodeFromTokens({
+						quotes,
+						startPos: this.ptr - this.tokens.size() - 1,
+						endPos: this.ptr - 2,
+					}) as StringLiteral;
 					ending && interpolated.push(ending);
 
-					this.pushChildNode(createInterpolatedString(...interpolated));
+					const interpolatedNode = createInterpolatedString(...interpolated);
+					interpolatedNode.pos = start;
+					interpolatedNode.endPos = this.ptr - 1;
+					interpolatedNode.rawText = this.raw.sub(start, this.ptr - 1);
+					this.pushChildNode(interpolatedNode);
 				} else {
-					this.pushChildNode(this.createNodeFromTokens({ quotes }));
+					this.pushChildNode(this.createNodeFromTokens({ quotes, startPos: start, endPos: this.ptr - 1 }));
 				}
 
 				return true;
@@ -358,11 +390,15 @@ export default class CommandAstParser {
 	 * `$varName` - For use in InterpolatedStrings, as arguments, or as the variable in VariableDeclarationStatements
 	 */
 	private parseVariable() {
+		const start = this.ptr - 1;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.SPACE || char.match("[%w_]")[0] === undefined) {
 				if (this.tokens !== "") {
 					const identifier = createIdentifier(this.tokens);
+					identifier.pos = start;
+					identifier.endPos = start + this.tokens.size();
+					identifier.rawText = this.raw.sub(start, start + this.tokens.size());
 					this.tokens = "";
 					return identifier;
 				} else {
@@ -380,6 +416,9 @@ export default class CommandAstParser {
 		// In case it's last in the index
 		if (this.tokens !== "") {
 			const identifier = createIdentifier(this.tokens);
+			identifier.pos = start;
+			identifier.endPos = start + this.tokens.size();
+			identifier.rawText = this.raw.sub(start, start + this.tokens.size());
 			this.tokens = "";
 			return identifier;
 		}
@@ -463,6 +502,7 @@ export default class CommandAstParser {
 	public parseNestedCommand(escapeChar: string = TOKEN.BACKQUOTE) {
 		let cmd = "";
 		let nestLevel = 0;
+		const start = this.ptr;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
@@ -476,8 +516,14 @@ export default class CommandAstParser {
 								subCommand,
 							]),
 						);
+					} else {
+						const inner = createInnerExpression(subCommand);
+						inner.pos = start;
+						inner.endPos = start + cmd.size() - 1;
+						inner.rawText = this.raw.sub(start, start + cmd.size() - 1);
+						shiftNodes(inner.expression, start);
+						return inner;
 					}
-					return subCommand;
 				} else {
 					nestLevel--;
 				}
@@ -500,11 +546,13 @@ export default class CommandAstParser {
 	 */
 	public Parse(): CommandSource {
 		let valid = true;
+		let statementBegin = 0;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
 				if (!this.escaped) {
-					this.appendStatementNode();
+					this.appendStatementNode(statementBegin, this.ptr - 1);
+					statementBegin = this.ptr + 1;
 				} else {
 					this.pop();
 					this.escaped = false;
@@ -579,10 +627,14 @@ export default class CommandAstParser {
 			this.pushChildNode(this.createNodeFromTokens());
 		}
 
-		this.appendStatementNode();
+		this.appendStatementNode(statementBegin, this.ptr - 1);
 
 		this.validateTree();
-		return createCommandSource(this.nodes);
+		const source = createCommandSource(this.nodes);
+		source.pos = 0;
+		source.endPos = this.ptr - 1;
+		source.rawText = this.raw;
+		return source;
 	}
 
 	public static validate(
@@ -643,68 +695,149 @@ export default class CommandAstParser {
 		}
 	}
 
-	public static prettyPrint(nodes: Node[], prefix = "") {
+	private static printProps(node: Node, prefix = "") {
+		print(`${prefix} <typeof ${getKindName(node.kind)}>`);
+		for (const [key, value] of Object.entries(node)) {
+			if (key === "parent" || key === "kind") {
+			} else if (key === "children" || key === "values") {
+				print(`\t${prefix} ${key}: {`);
+				for (const child of value as Node[]) {
+					this.printProps(child, prefix + "\t");
+				}
+				print(`\t${prefix}}`);
+			} else {
+				if (typeIs(value, "table")) {
+					print(`\t${prefix} ${key}: {`);
+					this.printProps(value as Node, prefix + "\t");
+					print(`\t${prefix}}`);
+				} else {
+					print(`\t${prefix}* ${key}: ${tostring(value)}`);
+				}
+			}
+		}
+	}
+
+	public static prettyPrint2(nodes: Node[], prefix = "") {
+		for (const node of nodes) {
+			this.printProps(node);
+		}
+	}
+
+	public static prettyPrint(nodes: Node[], prefix = "", verbose = false) {
 		for (const node of nodes) {
 			if (isNode(node, CmdSyntaxKind.CommandName)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.name.text);
+				if (verbose) {
+					print(
+						prefix,
+						CmdSyntaxKind[node.kind],
+						node.name.text,
+						`[${node.pos}:${node.endPos}]`,
+						`'${node.rawText}'`,
+					);
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], node.name.text);
+				}
 			} else if (isNode(node, CmdSyntaxKind.String)) {
-				print(
-					prefix,
-					CmdSyntaxKind[node.kind],
-					node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``,
-				);
+				const str = node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``;
+				if (verbose) {
+					print(prefix, getNodeKindName(node), str, `[${node.pos}:${node.endPos}]`, `{${node.rawText}}`);
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], str);
+				}
+
 				if (node.isUnterminated) {
 					print(prefix, "Unterminated String");
 				}
-			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint(node.children, prefix + "\t");
+			} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
+				if (verbose) {
+					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], "{");
+				}
+
+				this.prettyPrint([node.expression], prefix + "\t", verbose);
+
 				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.Number)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.value);
+			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
+				if (verbose) {
+					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], "{");
+				}
+
+				this.prettyPrint(node.children, prefix + "\t", verbose);
+				print(prefix, "}");
+			} else if (isNode(node, CmdSyntaxKind.Number) || isNode(node, CmdSyntaxKind.Boolean)) {
+				if (verbose) {
+					print(
+						prefix,
+						CmdSyntaxKind[node.kind],
+						node.value,
+						`'${node.rawText}'`,
+						`[${node.pos}:${node.endPos}]`,
+					);
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], node.value);
+				}
 			} else if (isNode(node, CmdSyntaxKind.Option)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.flag);
-				this.prettyPrint([node.right!], prefix + "\t");
+				this.prettyPrint([node.right!], prefix + "\t", verbose);
 			} else if (isNode(node, CmdSyntaxKind.Identifier)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.name);
+				if (verbose) {
+					print(
+						prefix,
+						CmdSyntaxKind[node.kind],
+						node.name,
+						`'${node.rawText}'`,
+						`[${node.pos}:${node.endPos}]`,
+					);
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], node.name);
+				}
 			} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.operator);
 			} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 				// print(prefix + "\t", ".operator", `"${node.operator}"`);
 				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint([node.left, node.operator, node.right], prefix + "\t");
+				this.prettyPrint([node.left, node.operator, node.right], prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				print(prefix + "\t", ".parent", getKindName(node.parent?.kind));
-				this.prettyPrint(node.values, prefix + "\t");
+				if (verbose) {
+					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], "{");
+				}
+
+				this.prettyPrint(node.values, prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.Source)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint(node.children, prefix + "\t");
+				if (verbose) {
+					print(prefix, CmdSyntaxKind[node.kind], `[${node.pos}:${node.endPos}]`, "{");
+				} else {
+					print(prefix, CmdSyntaxKind[node.kind], "{");
+				}
+
+				this.prettyPrint(node.children, prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.PrefixToken)) {
 				print(prefix, CmdSyntaxKind[node.kind], node.value);
 			} else if (isNode(node, CmdSyntaxKind.PrefixExpression)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.prefix, node.expression], prefix + "\t");
+				this.prettyPrint([node.prefix, node.expression], prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.identifier, node.expression], prefix + "\t");
+				this.prettyPrint([node.identifier, node.expression], prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.declaration], prefix + "\t");
+				this.prettyPrint([node.declaration], prefix + "\t", verbose);
 				print(prefix, "}");
 			} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
 				print(prefix, "EndOfStatement");
 			} else if (isNode(node, CmdSyntaxKind.Invalid)) {
 				print(prefix, "SYNTAX ERROR", node.message);
-			} else if (isNode(node, CmdSyntaxKind.Boolean)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.value);
 			}
 		}
 	}
@@ -756,6 +889,8 @@ export default class CommandAstParser {
 			return tostring(node.value);
 		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
 			return "";
+		} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
+			return "$(" + this.render(node.expression) + ")";
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;

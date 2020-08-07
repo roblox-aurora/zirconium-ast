@@ -2,6 +2,7 @@ export enum CmdSyntaxKind {
 	Unknown,
 	Source,
 	CommandStatement,
+	InnerExpression,
 	String,
 	Boolean,
 	CommandName,
@@ -32,6 +33,7 @@ interface NodeBase {
 	kind: CmdSyntaxKind;
 	parent?: Node;
 	pos?: number;
+	rawText?: string;
 	endPos?: number;
 	flags: NodeFlag;
 }
@@ -114,6 +116,11 @@ export interface CommandStatement extends NodeBase {
 	children: Node[];
 }
 
+export interface InnerExpression extends NodeBase {
+	kind: CmdSyntaxKind.InnerExpression;
+	expression: CommandStatement | BinaryExpression;
+}
+
 export interface NodeError {
 	node: Node;
 	message: string;
@@ -161,6 +168,11 @@ export function createCommandStatement(command: CommandName, children: Node[]) {
 	return statement;
 }
 
+export function createInnerExpression(expression: InnerExpression["expression"]) {
+	const statement: InnerExpression = { kind: CmdSyntaxKind.InnerExpression, expression, flags: 0 };
+	return statement;
+}
+
 export function createPrefixToken(value: PrefixToken["value"]): PrefixToken {
 	return { kind: CmdSyntaxKind.PrefixToken, value, flags: 0 };
 }
@@ -189,7 +201,14 @@ export function createNumberNode(value: number): NumberLiteral {
 }
 
 export function createCommandName(name: StringLiteral): CommandName {
-	return { kind: CmdSyntaxKind.CommandName, name, flags: 0 };
+	return {
+		kind: CmdSyntaxKind.CommandName,
+		name,
+		flags: 0,
+		pos: name.pos,
+		endPos: name.endPos,
+		rawText: name.rawText,
+	};
 }
 
 export function createIdentifier(name: string): Identifier {
@@ -276,6 +295,19 @@ export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind) {
 	return nodes.find((f) => f.kind === kind);
 }
 
+export function shiftNodes(node: Node, offset: number) {
+	if (node.pos !== undefined && node.endPos !== undefined) {
+		node.pos += offset;
+		node.endPos += offset;
+	}
+
+	if ("children" in node) {
+		for (const child of node.children) {
+			shiftNodes(child, offset);
+		}
+	}
+}
+
 /////////////////////////////////////////////////
 // Checks
 /////////////////////////////////////////////////
@@ -297,6 +329,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.VariableDeclaration]: VariableDeclaration;
 	[CmdSyntaxKind.VariableStatement]: VariableStatement;
 	[CmdSyntaxKind.Invalid]: InvalidNode;
+	[CmdSyntaxKind.InnerExpression]: InnerExpression;
 }
 
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;
