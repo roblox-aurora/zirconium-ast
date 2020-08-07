@@ -1,4 +1,4 @@
-import { Node, NodeError } from "Nodes";
+import { NodeError } from "./Nodes/NodeTypes";
 
 interface ValidationSuccess {
 	success: true;

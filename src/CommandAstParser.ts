@@ -1,6 +1,5 @@
 /* eslint-disable roblox-ts/lua-truthiness */
 import {
-	Node,
 	CmdSyntaxKind,
 	createCommandStatement,
 	createCommandName,
@@ -12,11 +11,7 @@ import {
 	createOperator,
 	createBinaryExpression,
 	createInterpolatedString,
-	InterpolatedStringExpression,
-	StringLiteral,
-	getKindName,
 	createCommandSource,
-	CommandSource,
 	createBooleanNode,
 	createEndOfStatementNode,
 	isValidPrefixCharacter,
@@ -27,13 +22,13 @@ import {
 	getNodeKindName,
 	isNodeIn,
 	createInvalidNode,
-	NodeError,
-	NodeFlag,
 	createNodeError,
 	createInnerExpression,
 	offsetNodePosition,
+	NodeFlag,
 } from "./Nodes";
 import { ValidationResult } from "./Validation";
+import { Node, InterpolatedStringExpression, StringLiteral, CommandSource, NodeError } from "./Nodes/NodeTypes";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -639,11 +634,7 @@ export default class CommandAstParser {
 		return source;
 	}
 
-	public static validate(
-		node: Node,
-		children = new Array<Node>(),
-		errorNodes = new Array<NodeError>(),
-	): ValidationResult {
+	public static validate(node: Node, errorNodes = new Array<NodeError>()): ValidationResult {
 		if (isNode(node, CmdSyntaxKind.Source)) {
 			for (const child of node.children) {
 				if (
@@ -653,23 +644,23 @@ export default class CommandAstParser {
 						CmdSyntaxKind.BinaryExpression,
 					])
 				) {
-					this.validate(child, node.children, errorNodes);
+					this.validate(child, errorNodes);
 				} else if (isNode(child, CmdSyntaxKind.Invalid)) {
-					this.validate(child, [], errorNodes);
+					this.validate(child, errorNodes);
 				} else {
 					errorNodes.push(createNodeError(`'${this.render(child)}' is not a valid expression`, child));
 				}
 			}
 		} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 			for (const child of node.children) {
-				this.validate(child, node.children, errorNodes);
+				this.validate(child, errorNodes);
 			}
 		} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
 			const {
 				declaration: { expression, identifier },
 			} = node;
-			this.validate(identifier, [], errorNodes);
-			this.validate(expression, [], errorNodes);
+			this.validate(identifier, errorNodes);
+			this.validate(expression, errorNodes);
 		} else if (isNode(node, CmdSyntaxKind.String)) {
 			if ((node.flags & NodeFlag.NodeHasError) !== 0) {
 				if (node.isUnterminated) {

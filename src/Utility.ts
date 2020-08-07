@@ -1,4 +1,5 @@
-import { Node, isNode, CmdSyntaxKind, getNodeKindName } from "Nodes";
+import { isNode, CmdSyntaxKind, getNodeKindName } from "./Nodes";
+import { Node } from "./Nodes/NodeTypes";
 
 export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 	for (const node of nodes) {
