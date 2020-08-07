@@ -48,10 +48,19 @@ local parsed = CommandAstParser.new([[
     $result2 = $(
         cmd2 --hello yes # allows multi-line
     )
+    $result3 = $(
+        can --we-go-deeper $(
+            yes we can
+        )
+    )
+    $result4 = $(
+        cursed --nesting $()
+    )
 ]], {
     prefixExpressions = true,
     variableDeclarations = true,
-    innerExpressions = true
+    innerExpressions = true,
+    nestingInnerExpressions = true
 }):Parse()
 print(CommandAstParser:render(parsed))
 CommandAstParser:prettyPrint({parsed})

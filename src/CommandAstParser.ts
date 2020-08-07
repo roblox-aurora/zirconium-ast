@@ -60,6 +60,10 @@ interface ParserOptions {
 	prefixExpressions: boolean;
 	/** @experimental */
 	innerExpressions: boolean;
+	/** @experimental */
+	nestingInnerExpressions: boolean;
+	/** @experimental */
+	maxNestedInnerExpressions: number;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
@@ -68,9 +72,11 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	prefixExpressions: false,
 	variableDeclarations: false,
 	innerExpressions: false,
+	nestingInnerExpressions: false,
 	operators: true,
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
+	maxNestedInnerExpressions: 1,
 };
 
 interface NodeCreationOptions {
@@ -427,16 +433,26 @@ export default class CommandAstParser {
 
 	public parseNestedCommand(escapeChar: string = TOKEN.BACKQUOTE) {
 		let cmd = "";
+		let nestLevel = 0;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
 
 			if (char === escapeChar) {
-				this.pop();
-				const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
-				if (!isNode(subCommand, CmdSyntaxKind.CommandStatement)) {
-					throw `[CommandParser] Unexpected ${getNodeKindName(subCommand)} when parsing nested command`;
+				if (nestLevel === 0) {
+					this.pop();
+					const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
+					if (!isNode(subCommand, CmdSyntaxKind.CommandStatement)) {
+						throw `[CommandParser] Unexpected ${getNodeKindName(subCommand)} when parsing nested command`;
+					}
+					return subCommand;
+				} else {
+					nestLevel--;
 				}
-				return subCommand;
+			} else if (escapeChar === ")" && char === "$" && this.next(1) === "(") {
+				if (!this.options.nestingInnerExpressions || nestLevel >= this.options.maxNestedInnerExpressions) {
+					throw `[CommandParser] Exceeding maximum expression nesting level of ${this.options.maxNestedInnerExpressions}`;
+				}
+				nestLevel++;
 			}
 
 			this.pop();
