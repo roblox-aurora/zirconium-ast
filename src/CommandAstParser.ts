@@ -303,7 +303,7 @@ export default class CommandAstParser {
 				});
 				prev && interpolated.push(prev as StringLiteral);
 
-				const variable = this.parseVariable();
+				const variable = this.parseVariable(true);
 				variable && interpolated.push(variable);
 				continue;
 			} else if (char === "\\") {
@@ -364,11 +364,16 @@ export default class CommandAstParser {
 	 *
 	 * `$varName` - For use in InterpolatedStrings, as arguments, or as the variable in VariableDeclarationStatements
 	 */
-	private parseVariable() {
+	private parseVariable(isInterpolated = false) {
 		const start = this.ptr - 1;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
-			if (char === TOKEN.SPACE || char === "=") {
+			if (
+				char === TOKEN.SPACE ||
+				char === "=" ||
+				char === "\n" ||
+				(isInterpolated && char.match("[^A-Za-z0-9_]")[0])
+			) {
 				const identifier = createIdentifier(this.tokens);
 				identifier.startPos = start;
 				identifier.endPos = start + this.tokens.size();
