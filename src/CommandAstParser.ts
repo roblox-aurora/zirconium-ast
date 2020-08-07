@@ -207,9 +207,12 @@ export default class CommandAstParser {
 							childNodes.push(createPrefixExpression(node, nextNode));
 						} else {
 							if (nextNode === undefined) {
-								throw `[CommandParser] Unexpected trailing PrefixToken`;
+								childNodes.push(createInvalidNode(`Unexpected trailing PrefixToken`, node));
 							}
-							throw `[CommandParser] Unexpected ${getNodeKindName(nextNode)} after PrefixToken`;
+
+							childNodes.push(
+								createInvalidNode(`Unexpected ${getNodeKindName(nextNode)} after PrefixToken`, node),
+							);
 						}
 						i += 2;
 					} else {
@@ -365,35 +368,25 @@ export default class CommandAstParser {
 		const start = this.ptr - 1;
 		while (this.ptr < this.raw.size()) {
 			const char = this.next();
-			if (char === TOKEN.SPACE || char.match("[%w_]")[0] === undefined) {
-				if (this.tokens !== "") {
-					const identifier = createIdentifier(this.tokens);
-					identifier.startPos = start;
-					identifier.endPos = start + this.tokens.size();
-					identifier.rawText = this.raw.sub(start, start + this.tokens.size());
-					this.tokens = "";
-					return identifier;
-				} else {
-					// throw `Invalid Variable Name: ${this.tokens}`;
-				}
+			if (char === TOKEN.SPACE || char === "=") {
+				const identifier = createIdentifier(this.tokens);
+				identifier.startPos = start;
+				identifier.endPos = start + this.tokens.size();
+				identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+				this.tokens = "";
+				return identifier;
 			}
 
-			if (char.match("[%w_]")[0] !== undefined) {
-				this.tokens += this.pop();
-			} else {
-				// throw `Variable cannot contain character: ${this.pop()}`;
-			}
+			this.tokens += this.pop();
 		}
 
-		// In case it's last in the index
-		if (this.tokens !== "") {
-			const identifier = createIdentifier(this.tokens);
-			identifier.startPos = start;
-			identifier.endPos = start + this.tokens.size();
-			identifier.rawText = this.raw.sub(start, start + this.tokens.size());
-			this.tokens = "";
-			return identifier;
-		}
+		const identifier = createIdentifier(this.tokens);
+		identifier.startPos = start;
+		identifier.endPos = start + this.tokens.size();
+		identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+		this.tokens = "";
+		return identifier;
+		//}
 	}
 
 	/**
@@ -639,6 +632,25 @@ export default class CommandAstParser {
 					);
 				}
 			}
+		} else if (guard.isIdentifier(node)) {
+			if (!node.name.match(guard.VALID_VARIABLE_NAME)[0]) {
+				if (node.name.match("^%d")[0]) {
+					errorNodes.push(
+						createNodeError(
+							`Invalid variable name '${node.name}' - variable must start with a letter or an underscore`,
+							node,
+						),
+					);
+				} else {
+					const invalidChars = node.name.match("[^A-z0-9_]")[0];
+					errorNodes.push(
+						createNodeError(
+							`Invalid variable name '${node.name}' - contains invalid character '${invalidChars}'`,
+							node,
+						),
+					);
+				}
+			}
 		} else if (guard.isInvalid(node)) {
 			errorNodes.push(createNodeError(node.message, node));
 		} else if ((node.flags & NodeFlag.NodeHasError) !== 0) {
@@ -671,7 +683,10 @@ export default class CommandAstParser {
 		}
 
 		if (isNode(node, CmdSyntaxKind.CommandStatement)) {
-			return node.children.map((c) => this.render(c)).join(" ");
+			return node.children
+				.map((c) => this.render(c))
+				.filter((c) => c !== "")
+				.join(" ");
 		} else if (isNode(node, CmdSyntaxKind.CommandName)) {
 			return node.name.text;
 		} else if (isNode(node, CmdSyntaxKind.String)) {
