@@ -78,8 +78,8 @@ export interface VariableDeclaration extends NodeBase {
 		| StringLiteral
 		| InterpolatedStringExpression
 		| BooleanLiteral
-		| CommandStatement
-		| Identifier;
+		| Identifier
+		| InnerExpression;
 }
 
 export interface VariableStatement extends NodeBase {

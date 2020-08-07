@@ -260,30 +260,26 @@ export default class CommandAstParser {
 								CmdSyntaxKind.Identifier,
 								CmdSyntaxKind.Number,
 								CmdSyntaxKind.Boolean,
-								CmdSyntaxKind.CommandStatement,
+								CmdSyntaxKind.InnerExpression,
 							])
 						) {
 							this.nodes.push(
 								createVariableStatement(createVariableDeclaration(firstNode, expressionNode)),
 							);
 						} else {
-							// throw `[CommandParser] Unexpected assignment of ${getNodeKindName(
-							// 	expressionNode,
-							// )} to variable`;
+							throw `[CommandParser] Unexpected assignment of ${getNodeKindName(
+								expressionNode,
+							)} to variable`;
 						}
 					} else {
 						this.nodes.push(
 							createInvalidNode(`Expression expected: '$${firstNode.name} ='`, [firstNode, nextNode]),
 						);
-						// throw `[CommandParser] Expression expected: '${firstNode.name} ='`;
 					}
 				} else {
 					this.nodes.push(createInvalidNode(`Unexpected Identifier: ${firstNode.name}`, [firstNode]));
 				}
 			} else {
-				// throw `[CommandParser] Expected valid CommandStatement or VariableStatement, cannot create command statement from ${getNodeKindName(
-				// 	firstNode,
-				// )}`;
 				for (const childNode of this.childNodes) {
 					childNode.flags = childNode.flags | NodeFlag.NodeHasError;
 					this.nodes.push(childNode);
@@ -577,7 +573,7 @@ export default class CommandAstParser {
 				if (this.next() === "(" && this.options.innerExpressions) {
 					this.pop();
 					const subCommand = this.parseNestedCommand(")");
-					this.pushChildNode(subCommand);
+					subCommand && this.pushChildNode(subCommand);
 					continue;
 				}
 
@@ -838,6 +834,8 @@ export default class CommandAstParser {
 				print(prefix, "EndOfStatement");
 			} else if (isNode(node, CmdSyntaxKind.Invalid)) {
 				print(prefix, "SYNTAX ERROR", node.message);
+			} else {
+				print(getNodeKindName(node));
 			}
 		}
 	}

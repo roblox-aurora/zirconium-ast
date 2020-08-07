@@ -60,7 +60,10 @@ local CommandAstInterpreter = CommandLib.CommandAstInterpreter
     )
 ]]
 
-local parsed = CommandAstParser.new([[cmd "token $string";cmd two --yeah okay;nested $(test --hello yes)]], {
+local parsed = CommandAstParser.new([[
+    $x = $(hi --there dave)
+    $x = 10
+]], {
     prefixExpressions = true,
     variableDeclarations = true,
     innerExpressions = true,
