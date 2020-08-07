@@ -46,7 +46,8 @@ export function isValidPrefixCharacter(input: string): input is typeof VALID_PRE
 	return VALID_PREFIX_CHARS.includes(input as typeof VALID_PREFIX_CHARS[number]);
 }
 
-export const VALID_VARIABLE_NAME = "^[A-z_][A-z0-9_]*$"; // matches $A, $a, $a0, $_a, $A_, $A_a, etc.
+export const VALID_VARIABLE_NAME = "^[A-Za-z_][A-Za-z0-9_]*$"; // matches $A, $a, $a0, $_a, $A_, $A_a, etc.
+export const VALID_COMMAND_NAME = "^[A-Za-z][A-Z0-9a-z_%-]*$";
 
 const PREFIXABLE = [
 	CmdSyntaxKind.String,

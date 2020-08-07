@@ -651,6 +651,11 @@ export default class CommandAstParser {
 					);
 				}
 			}
+		} else if (guard.isNode(node, CmdSyntaxKind.CommandName)) {
+			const { text } = node.name;
+			if (!text.match(guard.VALID_COMMAND_NAME)[0]) {
+				errorNodes.push(createNodeError(`Invalid command name '${text}'`, node.name));
+			}
 		} else if (guard.isInvalid(node)) {
 			errorNodes.push(createNodeError(node.message, node));
 		} else if ((node.flags & NodeFlag.NodeHasError) !== 0) {
