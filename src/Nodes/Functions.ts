@@ -18,8 +18,8 @@ export function getNodeKindName(node: Node) {
 }
 
 export function offsetNodePosition(node: Node, offset: number) {
-	if (node.pos !== undefined && node.endPos !== undefined) {
-		node.pos += offset;
+	if (node.startPos !== undefined && node.endPos !== undefined) {
+		node.startPos += offset;
 		node.endPos += offset;
 	}
 

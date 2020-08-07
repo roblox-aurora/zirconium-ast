@@ -1,3 +1,4 @@
+/* eslint-disable roblox-ts/lua-truthiness */
 import { ValidationResult } from "./Validation";
 import { Node, InterpolatedStringExpression, StringLiteral, CommandSource, NodeError } from "./Nodes/NodeTypes";
 import {
@@ -133,12 +134,12 @@ export default class CommandAstParser {
 		if (this.tokens !== "") {
 			if (this.tokens.match("^%d+$")[0] !== undefined) {
 				node = createNumberNode(tonumber(this.tokens)!);
-				node.pos = this.ptr - this.tokens.size() - 1;
+				node.startPos = this.ptr - this.tokens.size() - 1;
 				node.endPos = this.ptr - 1;
 				node.rawText = this.tokens;
 			} else if (this.tokens === "true" || this.tokens === "false") {
 				node = createBooleanNode(this.tokens === "true");
-				node.pos = this.ptr - this.tokens.size() - 1;
+				node.startPos = this.ptr - this.tokens.size() - 1;
 				node.endPos = this.ptr - 1;
 				node.rawText = this.tokens;
 			} else {
@@ -146,9 +147,9 @@ export default class CommandAstParser {
 				node.isUnterminated = options?.isUnterminated;
 
 				if (options?.startPos !== undefined) {
-					node.pos = options.startPos;
+					node.startPos = options.startPos;
 				} else {
-					node.pos = this.ptr - this.tokens.size();
+					node.startPos = this.ptr - this.tokens.size();
 				}
 
 				if (options?.endPos !== undefined) {
@@ -157,7 +158,7 @@ export default class CommandAstParser {
 					node.endPos = this.ptr - 1;
 				}
 
-				node.rawText = this.raw.sub(node.pos, node.endPos);
+				node.rawText = this.raw.sub(node.startPos, node.endPos);
 			}
 
 			this.tokens = "";
@@ -224,9 +225,9 @@ export default class CommandAstParser {
 					const nextNode = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
 					nextNode.rawText = this.raw.sub(startPos, endPos);
 
-					const expression = createBinaryExpression(prevNode, lastNode, nextNode, prevNode.pos, endPos);
+					const expression = createBinaryExpression(prevNode, lastNode, nextNode, prevNode.startPos, endPos);
 					// eslint-disable-next-line roblox-ts/lua-truthiness
-					expression.rawText = this.raw.sub(prevNode.pos ?? 0, endPos);
+					expression.rawText = this.raw.sub(prevNode.startPos ?? 0, endPos);
 
 					this.nodes = [...this.nodes.slice(0, this.nodes.size() - 2), expression];
 				} else {
@@ -249,12 +250,10 @@ export default class CommandAstParser {
 							)} to variable`;
 						}
 					} else {
-						this.nodes.push(
-							createInvalidNode(`Expression expected: '$${firstNode.name} ='`, [firstNode, nextNode]),
-						);
+						this.nodes.push(createInvalidNode(`Expression expected: '$${firstNode.name} ='`, nextNode));
 					}
 				} else {
-					this.nodes.push(createInvalidNode(`Unexpected Identifier: ${firstNode.name}`, [firstNode]));
+					this.nodes.push(createInvalidNode(`Unexpected Identifier: ${firstNode.name}`, firstNode));
 				}
 			} else {
 				for (const childNode of this.childNodes) {
@@ -320,7 +319,7 @@ export default class CommandAstParser {
 					ending && interpolated.push(ending);
 
 					const interpolatedNode = createInterpolatedString(...interpolated);
-					interpolatedNode.pos = start;
+					interpolatedNode.startPos = start;
 					interpolatedNode.endPos = this.ptr - 1;
 					interpolatedNode.rawText = this.raw.sub(start, this.ptr - 1);
 					this.pushChildNode(interpolatedNode);
@@ -369,7 +368,7 @@ export default class CommandAstParser {
 			if (char === TOKEN.SPACE || char.match("[%w_]")[0] === undefined) {
 				if (this.tokens !== "") {
 					const identifier = createIdentifier(this.tokens);
-					identifier.pos = start;
+					identifier.startPos = start;
 					identifier.endPos = start + this.tokens.size();
 					identifier.rawText = this.raw.sub(start, start + this.tokens.size());
 					this.tokens = "";
@@ -389,7 +388,7 @@ export default class CommandAstParser {
 		// In case it's last in the index
 		if (this.tokens !== "") {
 			const identifier = createIdentifier(this.tokens);
-			identifier.pos = start;
+			identifier.startPos = start;
 			identifier.endPos = start + this.tokens.size();
 			identifier.rawText = this.raw.sub(start, start + this.tokens.size());
 			this.tokens = "";
@@ -480,7 +479,7 @@ export default class CommandAstParser {
 								`Invalid inner expression: '${CommandAstParser.render(subCommand)}' (${getNodeKindName(
 									subCommand,
 								)}) - Only a CommandStatement is allowed.`,
-								[subCommand],
+								subCommand,
 								start,
 								start + cmd.size() - 1,
 							),
@@ -565,7 +564,7 @@ export default class CommandAstParser {
 				continue;
 			} else if (char === "=") {
 				this.pop();
-				this.pushChildNode(createOperator("="));
+				this.pushChildNode(createOperator("=", this.ptr - 1));
 				continue;
 			} else if (isValidPrefixCharacter(char) && this.options.prefixExpressions && !this.escaped) {
 				this.pop();
@@ -599,7 +598,7 @@ export default class CommandAstParser {
 		this.appendStatementNode(statementBegin, this.ptr - 1);
 
 		const source = createCommandSource(this.nodes);
-		source.pos = 0;
+		source.startPos = 0;
 		source.endPos = this.ptr - 1;
 		source.rawText = this.raw;
 		return source;
@@ -610,9 +609,10 @@ export default class CommandAstParser {
 			for (const child of node.children) {
 				if (guard.isValidExpression(child)) {
 					this.validate(child, errorNodes);
-				} else if (guard.isInvalid(node)) {
+				} else if (guard.isNode(child, CmdSyntaxKind.Invalid)) {
 					this.validate(child, errorNodes);
 				} else {
+					print(getNodeKindName(child));
 					errorNodes.push(createNodeError(`'${this.render(child)}' is not a valid expression`, child));
 				}
 			}
@@ -632,7 +632,7 @@ export default class CommandAstParser {
 					errorNodes.push(
 						createNodeError(
 							`Unterminated string: ${node.quotes !== undefined ?? ""}${node.text} [${
-								node.pos !== undefined ?? 0
+								node.startPos !== undefined ?? 0
 							}:${node.endPos !== undefined ?? 0}]`,
 							node,
 						),
@@ -655,9 +655,7 @@ export default class CommandAstParser {
 		const result = this.validate(node);
 		if (!result.success) {
 			const firstNode = result.errorNodes[0];
-			throw `[CmdParser] [${firstNode.node.pos !== undefined ?? 0}:${firstNode.node.endPos !== undefined ?? 0}] ${
-				firstNode.message
-			}`;
+			throw `[CmdParser] [${firstNode.node.startPos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
 		}
 	}
 
@@ -707,7 +705,7 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.Boolean)) {
 			return tostring(node.value);
 		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
-			return "";
+			return this.render(node.expression);
 		} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
 			return "$(" + this.render(node.expression) + ")";
 		} else {

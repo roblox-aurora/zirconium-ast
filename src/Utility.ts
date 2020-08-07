@@ -11,7 +11,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 					prefix,
 					CmdSyntaxKind[node.kind],
 					node.name.text,
-					`[${node.pos}:${node.endPos}]`,
+					`[${node.startPos}:${node.endPos}]`,
 					`'${node.rawText}'`,
 				);
 			} else {
@@ -20,7 +20,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 		} else if (isNode(node, CmdSyntaxKind.String)) {
 			const str = node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``;
 			if (verbose) {
-				print(prefix, getNodeKindName(node), str, `[${node.pos}:${node.endPos}]`, `{${node.rawText}}`);
+				print(prefix, getNodeKindName(node), str, `[${node.startPos}:${node.endPos}]`, `{${node.rawText}}`);
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], str);
 			}
@@ -30,7 +30,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			}
 		} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.startPos}:${node.endPos}]`, "{");
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}
@@ -40,7 +40,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.startPos}:${node.endPos}]`, "{");
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}
@@ -54,7 +54,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 					CmdSyntaxKind[node.kind],
 					node.value,
 					`'${node.rawText}'`,
-					`[${node.pos}:${node.endPos}]`,
+					`[${node.startPos}:${node.endPos}]`,
 				);
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], node.value);
@@ -64,7 +64,13 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			prettyPrintNodes([node.right!], prefix + "\t", verbose);
 		} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], node.name, `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`);
+				print(
+					prefix,
+					CmdSyntaxKind[node.kind],
+					node.name,
+					`'${node.rawText}'`,
+					`[${node.startPos}:${node.endPos}]`,
+				);
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], node.name);
 			}
@@ -72,7 +78,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, CmdSyntaxKind[node.kind], node.operator);
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.startPos}:${node.endPos}]`, "{");
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}
@@ -81,7 +87,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
+				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.startPos}:${node.endPos}]`, "{");
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}
@@ -90,7 +96,7 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.Source)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `[${node.pos}:${node.endPos}]`, "{");
+				print(prefix, CmdSyntaxKind[node.kind], `[${node.startPos}:${node.endPos}]`, "{");
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}

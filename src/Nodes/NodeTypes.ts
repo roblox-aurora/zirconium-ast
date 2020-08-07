@@ -24,7 +24,7 @@ export interface NodeTypes {
 export interface NodeBase {
 	kind: CmdSyntaxKind;
 	parent?: Node;
-	pos?: number;
+	startPos?: number;
 	rawText?: string;
 	endPos?: number;
 	flags: NodeFlag;
@@ -57,7 +57,7 @@ export interface BinaryExpression extends NodeBase {
 
 export interface InvalidNode extends NodeBase {
 	kind: CmdSyntaxKind.Invalid;
-	nodes?: Node[];
+	expression: Node;
 	message: string;
 }
 

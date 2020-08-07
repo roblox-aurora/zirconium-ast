@@ -66,7 +66,7 @@ export function createCommandStatement(command: CommandName, children: Node[], s
 		command,
 		children,
 		flags: 0,
-		pos: startPos,
+		startPos: startPos,
 		endPos,
 	};
 	for (const child of statement.children) {
@@ -81,7 +81,7 @@ export function createInnerExpression(expression: InnerExpression["expression"],
 		kind: CmdSyntaxKind.InnerExpression,
 		expression,
 		flags: 0,
-		pos: startPos,
+		startPos: startPos,
 		endPos,
 	};
 	return statement;
@@ -119,7 +119,7 @@ export function createCommandName(name: StringLiteral): CommandName {
 		kind: CmdSyntaxKind.CommandName,
 		name,
 		flags: 0,
-		pos: name.pos,
+		startPos: name.startPos,
 		endPos: name.endPos,
 		rawText: name.rawText,
 	};
@@ -133,8 +133,14 @@ export function createOption(flag: string): Option {
 	return { kind: CmdSyntaxKind.Option, flag, flags: 0 };
 }
 
-export function createOperator(operator: OperatorToken["operator"]): OperatorToken {
-	return { kind: CmdSyntaxKind.OperatorToken, operator, flags: 0 };
+export function createOperator(operator: OperatorToken["operator"], startPos?: number): OperatorToken {
+	return {
+		kind: CmdSyntaxKind.OperatorToken,
+		operator,
+		flags: 0,
+		startPos,
+		endPos: (startPos ?? 0) + operator.size() - 1,
+	};
 }
 
 export function createVariableDeclaration(
@@ -158,21 +164,19 @@ export function createEndOfStatementNode(): EndOfStatement {
 
 export function createInvalidNode(
 	message: InvalidNode["message"],
-	nodes: Node[],
+	expression: Node,
 	startPos?: number,
 	endPos?: number,
 ): InvalidNode {
-	const firstNode = nodes[0];
-	const lastNode = nodes[nodes.size() - 1];
-
 	return {
 		kind: CmdSyntaxKind.Invalid,
+		expression,
 		message,
 		flags: NodeFlag.NodeHasError,
 		// eslint-disable-next-line roblox-ts/lua-truthiness
-		pos: startPos ?? firstNode.pos,
+		startPos: startPos ?? expression.startPos,
 		// eslint-disable-next-line roblox-ts/lua-truthiness
-		endPos: endPos ?? lastNode.endPos,
+		endPos: endPos ?? expression.endPos,
 	};
 }
 
@@ -190,7 +194,7 @@ export function createBinaryExpression(
 		right,
 		children: [left, right],
 		flags: 0,
-		pos: startPos,
+		startPos: startPos,
 		endPos,
 	};
 	left.parent = expression;
