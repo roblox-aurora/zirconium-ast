@@ -175,8 +175,14 @@ export function createCommandStatement(command: CommandName, children: Node[], s
 	return statement;
 }
 
-export function createInnerExpression(expression: InnerExpression["expression"]) {
-	const statement: InnerExpression = { kind: CmdSyntaxKind.InnerExpression, expression, flags: 0 };
+export function createInnerExpression(expression: InnerExpression["expression"], startPos?: number, endPos?: number) {
+	const statement: InnerExpression = {
+		kind: CmdSyntaxKind.InnerExpression,
+		expression,
+		flags: 0,
+		pos: startPos,
+		endPos,
+	};
 	return statement;
 }
 
@@ -249,7 +255,12 @@ export function createEndOfStatementNode(): EndOfStatement {
 	return { kind: CmdSyntaxKind.EndOfStatement, flags: 0 };
 }
 
-export function createInvalidNode(message: InvalidNode["message"], nodes: Node[]): InvalidNode {
+export function createInvalidNode(
+	message: InvalidNode["message"],
+	nodes: Node[],
+	startPos?: number,
+	endPos?: number,
+): InvalidNode {
 	const firstNode = nodes[0];
 	const lastNode = nodes[nodes.size() - 1];
 
@@ -257,8 +268,10 @@ export function createInvalidNode(message: InvalidNode["message"], nodes: Node[]
 		kind: CmdSyntaxKind.Invalid,
 		message,
 		flags: NodeFlag.NodeHasError,
-		pos: firstNode.pos,
-		endPos: lastNode.endPos,
+		// eslint-disable-next-line roblox-ts/lua-truthiness
+		pos: startPos ?? firstNode.pos,
+		// eslint-disable-next-line roblox-ts/lua-truthiness
+		endPos: endPos ?? lastNode.endPos,
 	};
 }
 
@@ -329,6 +342,12 @@ export function offsetNodePosition(node: Node, offset: number) {
 		for (const child of node.children) {
 			offsetNodePosition(child, offset);
 		}
+	} else if ("values" in node) {
+		for (const child of node.values) {
+			offsetNodePosition(child, offset);
+		}
+	} else if ("expression" in node) {
+		offsetNodePosition(node.expression, offset);
 	}
 }
 

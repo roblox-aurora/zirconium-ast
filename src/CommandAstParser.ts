@@ -508,19 +508,18 @@ export default class CommandAstParser {
 					this.pop();
 					const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
 					if (!isNodeIn(subCommand, [CmdSyntaxKind.CommandStatement])) {
-						const invalid = createInvalidNode(
-							`Invalid inner expression: ${CommandAstParser.render(subCommand)} (${getNodeKindName(
-								subCommand,
-							)}) - Only a CommandStatement is allowed.`,
-							[subCommand],
+						this.nodes.push(
+							createInvalidNode(
+								`Invalid inner expression: '${CommandAstParser.render(subCommand)}' (${getNodeKindName(
+									subCommand,
+								)}) - Only a CommandStatement is allowed.`,
+								[subCommand],
+								start,
+								start + cmd.size() - 1,
+							),
 						);
-						invalid.pos = start;
-						invalid.endPos = start + cmd.size() - 1;
-						this.nodes.push(invalid);
 					} else {
-						const inner = createInnerExpression(subCommand);
-						inner.pos = start;
-						inner.endPos = start + cmd.size() - 1;
+						const inner = createInnerExpression(subCommand, start, start + cmd.size());
 						inner.rawText = this.raw.sub(start, start + cmd.size() - 1);
 						offsetNodePosition(inner.expression, start);
 						return inner;
@@ -658,7 +657,7 @@ export default class CommandAstParser {
 				} else if (isNode(child, CmdSyntaxKind.Invalid)) {
 					this.validate(child, [], errorNodes);
 				} else {
-					errorNodes.push(createNodeError(`${this.render(child)} is not a valid expression`, child));
+					errorNodes.push(createNodeError(`'${this.render(child)}' is not a valid expression`, child));
 				}
 			}
 		} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
@@ -701,158 +700,6 @@ export default class CommandAstParser {
 		if (!result.success) {
 			const firstNode = result.errorNodes[0];
 			throw `[CmdParser] [${firstNode.node.pos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
-		}
-	}
-
-	private static printProps(node: Node, prefix = "") {
-		print(`${prefix} <typeof ${getKindName(node.kind)}>`);
-		for (const [key, value] of Object.entries(node)) {
-			if (key === "parent" || key === "kind") {
-			} else if (key === "children" || key === "values") {
-				print(`\t${prefix} ${key}: {`);
-				for (const child of value as Node[]) {
-					this.printProps(child, prefix + "\t");
-				}
-				print(`\t${prefix}}`);
-			} else {
-				if (typeIs(value, "table")) {
-					print(`\t${prefix} ${key}: {`);
-					this.printProps(value as Node, prefix + "\t");
-					print(`\t${prefix}}`);
-				} else {
-					print(`\t${prefix}* ${key}: ${tostring(value)}`);
-				}
-			}
-		}
-	}
-
-	public static prettyPrint2(nodes: Node[], prefix = "") {
-		for (const node of nodes) {
-			this.printProps(node);
-		}
-	}
-
-	public static prettyPrint(nodes: Node[], prefix = "", verbose = false) {
-		for (const node of nodes) {
-			if (isNode(node, CmdSyntaxKind.CommandName)) {
-				if (verbose) {
-					print(
-						prefix,
-						CmdSyntaxKind[node.kind],
-						node.name.text,
-						`[${node.pos}:${node.endPos}]`,
-						`'${node.rawText}'`,
-					);
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], node.name.text);
-				}
-			} else if (isNode(node, CmdSyntaxKind.String)) {
-				const str = node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``;
-				if (verbose) {
-					print(prefix, getNodeKindName(node), str, `[${node.pos}:${node.endPos}]`, `{${node.rawText}}`);
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], str);
-				}
-
-				if (node.isUnterminated) {
-					print(prefix, "Unterminated String");
-				}
-			} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
-				if (verbose) {
-					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], "{");
-				}
-
-				this.prettyPrint([node.expression], prefix + "\t", verbose);
-
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.CommandStatement)) {
-				if (verbose) {
-					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], "{");
-				}
-
-				this.prettyPrint(node.children, prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.Number) || isNode(node, CmdSyntaxKind.Boolean)) {
-				if (verbose) {
-					print(
-						prefix,
-						CmdSyntaxKind[node.kind],
-						node.value,
-						`'${node.rawText}'`,
-						`[${node.pos}:${node.endPos}]`,
-					);
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], node.value);
-				}
-			} else if (isNode(node, CmdSyntaxKind.Option)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.flag);
-				this.prettyPrint([node.right!], prefix + "\t", verbose);
-			} else if (isNode(node, CmdSyntaxKind.Identifier)) {
-				if (verbose) {
-					print(
-						prefix,
-						CmdSyntaxKind[node.kind],
-						node.name,
-						`'${node.rawText}'`,
-						`[${node.pos}:${node.endPos}]`,
-					);
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], node.name);
-				}
-			} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.operator);
-			} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
-				if (verbose) {
-					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], "{");
-				}
-
-				this.prettyPrint([node.left, node.operator, node.right], prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
-				if (verbose) {
-					print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.pos}:${node.endPos}]`, "{");
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], "{");
-				}
-
-				this.prettyPrint(node.values, prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.Source)) {
-				if (verbose) {
-					print(prefix, CmdSyntaxKind[node.kind], `[${node.pos}:${node.endPos}]`, "{");
-				} else {
-					print(prefix, CmdSyntaxKind[node.kind], "{");
-				}
-
-				this.prettyPrint(node.children, prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.PrefixToken)) {
-				print(prefix, CmdSyntaxKind[node.kind], node.value);
-			} else if (isNode(node, CmdSyntaxKind.PrefixExpression)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.prefix, node.expression], prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.identifier, node.expression], prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
-				this.prettyPrint([node.declaration], prefix + "\t", verbose);
-				print(prefix, "}");
-			} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
-				print(prefix, "EndOfStatement");
-			} else if (isNode(node, CmdSyntaxKind.Invalid)) {
-				print(prefix, "SYNTAX ERROR", node.message);
-			} else {
-				print(getNodeKindName(node));
-			}
 		}
 	}
 
