@@ -224,15 +224,33 @@ Simplified via `CommandAstParser.prettyPrint`
     }
     ```
 
+- Inner Expressions
+
+    `cmd $(cmd2 --something else)`
+    ```
+    CommandStatement {
+        CommandName cmd
+        InnerExpression {
+            CommandStatement {
+                CommandName cmd2
+                Option something
+                String else
+            }
+        }
+    }
+    ```
+
     `$var = $(cmd xyz)`
 
     ```
     VariableDeclarationStatement {
         VariableDeclaration {
             Identifier var
-            CommandStatement {
-                CommandName cmd
-                String `xyz`
+            InnerExpression {
+                CommandStatement {
+                    CommandName cmd
+                    String `xyz`
+                }
             }
         }
     }
