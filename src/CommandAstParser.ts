@@ -629,9 +629,9 @@ export default class CommandAstParser {
 				if (node.isUnterminated) {
 					errorNodes.push(
 						createNodeError(
-							`Unterminated string: ${node.quotes !== undefined ?? ""}${node.text} [${
-								node.startPos !== undefined ?? 0
-							}:${node.endPos !== undefined ?? 0}]`,
+							`Unterminated string: ${node.quotes ?? ""}${node.text} [${node.startPos ?? 0}:${
+								node.endPos ?? 0
+							}]`,
 							node,
 						),
 					);
