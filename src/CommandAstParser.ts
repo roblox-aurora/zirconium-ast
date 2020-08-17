@@ -208,22 +208,24 @@ export default class CommandAstParser {
 				if (this.commands.size() > 0) {
 					let matchingCommand = this.commands.find((c) => c.command === firstNode.text);
 
-					if (matchingCommand && matchingCommand.children !== undefined) {
-						// This is where we do some magic with subcommands. :-)
-						const i = 1;
-						while (i < this.childNodes.size()) {
-							const node = this.childNodes[i];
-							if (
-								matchingCommand &&
-								matchingCommand.children !== undefined &&
-								guard.isStringLiteral(node)
-							) {
-								matchingCommand = matchingCommand.children.find((c) => c.command === node.text);
-								if (matchingCommand) {
-									this.childNodes[i] = createCommandName(node);
+					if (matchingCommand) {
+						if (matchingCommand.children !== undefined) {
+							// This is where we do some magic with subcommands. :-)
+							const i = 1;
+							while (i < this.childNodes.size()) {
+								const node = this.childNodes[i];
+								if (
+									matchingCommand &&
+									matchingCommand.children !== undefined &&
+									guard.isStringLiteral(node)
+								) {
+									matchingCommand = matchingCommand.children.find((c) => c.command === node.text);
+									if (matchingCommand) {
+										this.childNodes[i] = createCommandName(node);
+									}
+								} else {
+									break;
 								}
-							} else {
-								break;
 							}
 						}
 					} else if (this.options.invalidCommandIsError) {
