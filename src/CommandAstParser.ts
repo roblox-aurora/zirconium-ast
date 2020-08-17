@@ -26,6 +26,7 @@ import { isNode, isValidPrefixCharacter, isPrefixableExpression, isAssignableExp
 import * as guard from "./Nodes/Guards";
 import { CmdSyntaxKind, NodeFlag } from "./Nodes";
 import { getNodeKindName, offsetNodePosition } from "./Nodes/Functions";
+import { AstCommandDefinitions, AstCommandDefinition } from "./Definitions/Definitions";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -64,6 +65,8 @@ interface ParserOptions {
 	nestingInnerExpressions: boolean;
 	/** @experimental */
 	maxNestedInnerExpressions: number;
+
+	commands: AstCommandDefinitions;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
@@ -77,6 +80,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
 	maxNestedInnerExpressions: 1,
+	commands: [],
 };
 
 interface NodeCreationOptions {
@@ -91,22 +95,23 @@ export default class CommandAstParser {
 	private childNodes = new Array<Node>();
 	private nodes = new Array<Node>();
 	private tokens = "";
-	private raw: string;
+	private source = "";
 	private escaped = false;
 	public readonly errors = new Array<string>();
 	private options: ParserOptions;
+	private commands: AstCommandDefinitions;
 
-	constructor(raw: string, options?: Partial<ParserOptions>) {
-		this.raw = raw;
+	constructor(options?: Partial<ParserOptions>) {
 		this.options = { ...DEFAULT_PARSER_OPTIONS, ...options };
+		this.commands = this.options.commands;
 	}
 
 	private next(offset = 0) {
-		return this.raw.sub(this.ptr + offset, this.ptr + offset);
+		return this.source.sub(this.ptr + offset, this.ptr + offset);
 	}
 
 	private nextMatch(value: string, offset = 0) {
-		return this.raw.sub(this.ptr + offset, this.ptr + offset + value.size() - 1) === value;
+		return this.source.sub(this.ptr + offset, this.ptr + offset + value.size() - 1) === value;
 	}
 
 	private pop(offset = 1) {
@@ -158,7 +163,7 @@ export default class CommandAstParser {
 					node.endPos = this.ptr - 1;
 				}
 
-				node.rawText = this.raw.sub(node.startPos, node.endPos);
+				node.rawText = this.source.sub(node.startPos, node.endPos);
 			}
 
 			this.tokens = "";
@@ -196,6 +201,32 @@ export default class CommandAstParser {
 				const nameNode = createCommandName(firstNode);
 				this.childNodes[0] = nameNode;
 
+				if (this.commands.size() > 0) {
+					let matchingCommand = this.commands.find((c) => c.command === firstNode.text);
+
+					if (matchingCommand && matchingCommand.children !== undefined) {
+						// This is where we do some magic with subcommands. :-)
+						const i = 1;
+						while (i < this.childNodes.size()) {
+							const node = this.childNodes[i];
+							if (
+								matchingCommand &&
+								matchingCommand.children !== undefined &&
+								guard.isStringLiteral(node)
+							) {
+								matchingCommand = matchingCommand.children.find((c) => c.command === node.text);
+								if (matchingCommand) {
+									this.childNodes[i] = createCommandName(node);
+								}
+							} else {
+								break;
+							}
+						}
+					} else {
+						this.childNodes.push(createInvalidNode(`Invalid command '${firstNode.text}'`, firstNode));
+					}
+				}
+
 				// Do final statement "combining" actions
 				let i = 0;
 				const childNodes = new Array<Node>();
@@ -226,16 +257,16 @@ export default class CommandAstParser {
 				if (guard.isOperatorToken(lastNode)) {
 					const prevNode = this.getNodeAt(-2);
 					const nextNode = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
-					nextNode.rawText = this.raw.sub(startPos, endPos);
+					nextNode.rawText = this.source.sub(startPos, endPos);
 
 					const expression = createBinaryExpression(prevNode, lastNode, nextNode, prevNode.startPos, endPos);
 					// eslint-disable-next-line roblox-ts/lua-truthiness
-					expression.rawText = this.raw.sub(prevNode.startPos ?? 0, endPos);
+					expression.rawText = this.source.sub(prevNode.startPos ?? 0, endPos);
 
 					this.nodes = [...this.nodes.slice(0, this.nodes.size() - 2), expression];
 				} else {
 					const statement = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
-					statement.rawText = this.raw.sub(startPos, endPos);
+					statement.rawText = this.source.sub(startPos, endPos);
 					this.nodes.push(statement);
 				}
 			} else if (guard.isIdentifier(firstNode) && this.options.variableDeclarations) {
@@ -284,7 +315,7 @@ export default class CommandAstParser {
 
 		const start = this.ptr - 1;
 
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 
 			if (
@@ -324,7 +355,7 @@ export default class CommandAstParser {
 					const interpolatedNode = createInterpolatedString(...interpolated);
 					interpolatedNode.startPos = start;
 					interpolatedNode.endPos = this.ptr - 1;
-					interpolatedNode.rawText = this.raw.sub(start, this.ptr - 1);
+					interpolatedNode.rawText = this.source.sub(start, this.ptr - 1);
 					this.pushChildNode(interpolatedNode);
 				} else {
 					this.pushChildNode(this.createNodeFromTokens({ quotes, startPos: start, endPos: this.ptr - 1 }));
@@ -337,7 +368,7 @@ export default class CommandAstParser {
 			this.tokens += this.pop();
 		}
 
-		this.errors.push(`Unterminated StringLiteral:  ${this.raw.sub(start, this.ptr)}`);
+		this.errors.push(`Unterminated StringLiteral:  ${this.source.sub(start, this.ptr)}`);
 		this.pushChildNode(
 			this.createNodeFromTokens({ isUnterminated: true, quotes, startPos: start, endPos: this.ptr }),
 		);
@@ -350,7 +381,7 @@ export default class CommandAstParser {
 	 * - basically removes comments
 	 */
 	private parseComment() {
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 			if (char === "\n" || char === "\r") {
 				break;
@@ -366,7 +397,7 @@ export default class CommandAstParser {
 	 */
 	private parseVariable(isInterpolated = false) {
 		const start = this.ptr - 1;
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 			if (
 				char === TOKEN.SPACE ||
@@ -377,7 +408,7 @@ export default class CommandAstParser {
 				const identifier = createIdentifier(this.tokens);
 				identifier.startPos = start;
 				identifier.endPos = start + this.tokens.size();
-				identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+				identifier.rawText = this.source.sub(start, start + this.tokens.size());
 				this.tokens = "";
 				return identifier;
 			}
@@ -388,7 +419,7 @@ export default class CommandAstParser {
 		const identifier = createIdentifier(this.tokens);
 		identifier.startPos = start;
 		identifier.endPos = start + this.tokens.size();
-		identifier.rawText = this.raw.sub(start, start + this.tokens.size());
+		identifier.rawText = this.source.sub(start, start + this.tokens.size());
 		this.tokens = "";
 		return identifier;
 		//}
@@ -418,7 +449,7 @@ export default class CommandAstParser {
 	 * Parses long-form option names
 	 */
 	private parseLongOptionName() {
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 			const valid = char.match("[%a%d_-]")[0];
 			if (char === TOKEN.SPACE || valid === undefined) {
@@ -450,7 +481,7 @@ export default class CommandAstParser {
 	 * Parse short-form option names
 	 */
 	private parseOptionLetter() {
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 			if (char === TOKEN.SPACE || char.match("[%a_]")[0] === undefined) {
 				break;
@@ -464,13 +495,13 @@ export default class CommandAstParser {
 		let cmd = "";
 		let nestLevel = 0;
 		const start = this.ptr;
-		while (this.ptr < this.raw.size()) {
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 
 			if (char === escapeChar) {
 				if (nestLevel === 0) {
 					this.pop();
-					const subCommand = new CommandAstParser(cmd, this.options).Parse().children[0];
+					const subCommand = new CommandAstParser(this.options).Parse(cmd).children[0];
 					if (!guard.isCommandStatement(subCommand)) {
 						this.nodes.push(
 							createInvalidNode(
@@ -484,7 +515,7 @@ export default class CommandAstParser {
 						);
 					} else {
 						const inner = createInnerExpression(subCommand, start, start + cmd.size());
-						inner.rawText = this.raw.sub(start, start + cmd.size() - 1);
+						inner.rawText = this.source.sub(start, start + cmd.size() - 1);
 						offsetNodePosition(inner.expression, start);
 						return inner;
 					}
@@ -505,13 +536,19 @@ export default class CommandAstParser {
 		// throw `[CommandParser] Unexpected end of source when parsing nested command`;
 	}
 
+	public SetCommandDefinitions(definitions: AstCommandDefinitions) {
+		this.commands = definitions;
+	}
+
 	/**
 	 * Parses the command source provided to this CommandAstParser
 	 */
-	public Parse(): CommandSource {
+	public Parse(rawSource: string): CommandSource {
 		let valid = true;
 		let statementBegin = 0;
-		while (this.ptr < this.raw.size()) {
+		this.source = rawSource;
+
+		while (this.ptr < this.source.size()) {
 			const char = this.next();
 			if (char === TOKEN.END || char === "\n" || char === TOKEN.CARRIAGE_RETURN) {
 				if (!this.escaped) {
@@ -598,7 +635,7 @@ export default class CommandAstParser {
 		const source = createCommandSource(this.nodes);
 		source.startPos = 0;
 		source.endPos = this.ptr - 1;
-		source.rawText = this.raw;
+		source.rawText = this.source;
 		return source;
 	}
 

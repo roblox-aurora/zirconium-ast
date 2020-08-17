@@ -6,7 +6,18 @@ local util = CommandLib.astUtility
 local prettyPrintNodes = util.prettyPrintNodes
 local CommandAstInterpreter = CommandLib.CommandAstInterpreter
 
-local parsed = CommandAstParser.new([[
+local parsed = CommandAstParser.new({
+    prefixExpressions = true,
+    variableDeclarations = true,
+    innerExpressions = true,
+    nestingInnerExpressions = true,
+    commands = {
+        { command = "cmd" },
+        { command = "main", children = {
+            { command = "sub" }
+        }}
+    }
+}):Parse([[
     # Regular Commands
     cmd hello there
     cmd "Hello there"
@@ -60,12 +71,11 @@ local parsed = CommandAstParser.new([[
             or is it "?"
         )
     )
-]], {
-    prefixExpressions = true,
-    variableDeclarations = true,
-    innerExpressions = true,
-    nestingInnerExpressions = true
-}):Parse()
+
+    # Subcommand testing
+    main sub yes --test
+    main nosub yes --test
+]])
 
 
 print(CommandAstParser:render(parsed))
