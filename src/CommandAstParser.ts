@@ -1,5 +1,5 @@
 /* eslint-disable roblox-ts/lua-truthiness */
-import { ValidationResult } from "./Validation";
+import type { ValidationResult } from "./Validation";
 import { Node, InterpolatedStringExpression, StringLiteral, CommandSource, NodeError } from "./Nodes/NodeTypes";
 import {
 	createNumberNode,
