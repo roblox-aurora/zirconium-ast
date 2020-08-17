@@ -6,31 +6,44 @@ local util = CommandLib.astUtility
 local prettyPrintNodes = util.prettyPrintNodes
 local CommandAstInterpreter = CommandLib.CommandAstInterpreter
 
-local parsed = CommandAstParser.new({
+local parser = CommandAstParser.new({
     prefixExpressions = true,
     variableDeclarations = true,
     innerExpressions = true,
     -- invalidCommandIsError = false,
     nestingInnerExpressions = true,
     commands = {
-        { command = "cmd" },
-        { command = "main", children = {
+        { command = "void" },
+        { 
+            command = "cmd1", 
+            args = {
+                { 
+                    type = {"string"}
+                }
+            } 
+        },
+        { command = "cmd2", children = {
             { 
                 command = "sub", 
                 options = {
                     test = { type = {"string", "number"} }
+                },
+                args = {
+                    {type = {"string"} }
                 }
             }
         }}
     }
-}):Parse([[
+})
+
+local parsed = parser:Parse([[
     # Subcommand testing
-    cmd test
-    main sub yes --test hello
-    main sub --test true
-]])
+    # cmd1 "Hello $playerName!"
+    # cmd2 sub test --test hello
+    # cmd2 sub --test true
+]]);
 
 
 print(CommandAstParser:render(parsed))
 prettyPrintNodes({parsed}, nil, true)
-CommandAstParser:assert(parsed)
+CommandAstParser:assert(parsed, parser:GetSource())

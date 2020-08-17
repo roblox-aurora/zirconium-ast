@@ -13,23 +13,31 @@ export interface AstOptionDefinition extends AstBaseDefinition {}
 
 export interface AstCommandDefinition {
 	readonly command: string;
-	readonly options: Readonly<Record<string, AstOptionDefinition>>;
-	readonly args: readonly AstPrimitiveType[];
+	readonly options?: Readonly<Record<string, AstOptionDefinition>>;
+	readonly args?: readonly AstArgumentDefinition[];
 	readonly children?: readonly AstCommandDefinition[];
 }
 export type AstCommandDefinitions = readonly AstCommandDefinition[];
 
+export function nodeMatchAstDefinitionType(node: Node, type: AstPrimitiveType): MatchResult {
+	if (type === "string" && isStringExpression(node)) {
+		return { matches: true, matchType: type };
+	} else if (type === "number" && isNumberLiteral(node)) {
+		return { matches: true, matchType: type };
+	} else if (type === "boolean" && isBooleanLiteral(node)) {
+		return { matches: true, matchType: type };
+	} else if (type === "switch") {
+		return { matches: true, matchType: type };
+	}
+	return { matches: false };
+}
+
 type MatchResult = { matches: true; matchType: AstPrimitiveType } | { matches: false };
-export function nodeMatchesAstDefinition(node: Node, types: readonly AstPrimitiveType[]): MatchResult {
+export function nodeMatchesAstDefinitionTypes(node: Node, types: readonly AstPrimitiveType[]): MatchResult {
 	for (const type of types) {
-		if (type === "string" && isStringExpression(node)) {
-			return { matches: true, matchType: type };
-		} else if (type === "number" && isNumberLiteral(node)) {
-			return { matches: true, matchType: type };
-		} else if (type === "boolean" && isBooleanLiteral(node)) {
-			return { matches: true, matchType: type };
-		} else if (type === "switch") {
-			return { matches: true, matchType: type };
+		const result = nodeMatchAstDefinitionType(node, type);
+		if (result.matches) {
+			return result;
 		}
 	}
 

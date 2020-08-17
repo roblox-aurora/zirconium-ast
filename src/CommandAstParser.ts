@@ -27,7 +27,12 @@ import { isNode, isValidPrefixCharacter, isPrefixableExpression, isAssignableExp
 import * as guard from "./Nodes/Guards";
 import { CmdSyntaxKind, NodeFlag } from "./Nodes";
 import { getNodeKindName, offsetNodePosition, getFriendlyName } from "./Nodes/Functions";
-import { AstCommandDefinitions, AstCommandDefinition, nodeMatchesAstDefinition } from "./Definitions/Definitions";
+import {
+	AstCommandDefinitions,
+	AstCommandDefinition,
+	nodeMatchesAstDefinitionTypes,
+	nodeMatchAstDefinitionType,
+} from "./Definitions/Definitions";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -213,9 +218,11 @@ export default class CommandAstParser {
 					let matchingCommand = this.commands.find((c) => c.command === firstNode.text);
 
 					if (matchingCommand) {
+						let i = 1;
+
 						if (matchingCommand.children !== undefined) {
 							// Pull the subcommands out, yo!
-							let i = 1;
+
 							while (i < this.childNodes.size()) {
 								const node = this.childNodes[i];
 								if (
@@ -238,59 +245,81 @@ export default class CommandAstParser {
 								}
 								i++;
 							}
+						}
 
-							const childNodes = [...nameNodes];
-							const { options } = matchingCommand;
+						const childNodes = [...nameNodes];
+						const { options, args } = matchingCommand;
 
-							if (options) {
-								// Now we handle option "merging"
-								while (i < this.childNodes.size()) {
-									const node = this.childNodes[i];
-									if (guard.isOptionKey(node)) {
-										const nextNode = this.childNodes[i + 1];
-										const option = options[node.flag];
-										if (option !== undefined) {
-											const { type } = option;
+						if (options) {
+							// Now we handle option "merging"
+							while (i < this.childNodes.size()) {
+								const node = this.childNodes[i];
+								if (guard.isOptionKey(node)) {
+									const nextNode = this.childNodes[i + 1];
+									const option = options[node.flag];
+									if (option !== undefined) {
+										const { type } = option;
 
-											const matcher = nodeMatchesAstDefinition(nextNode, type);
-											if (matcher.matches) {
-												if (matcher.matchType === "switch") {
-													childNodes.push(
-														createOptionExpression(node, createBooleanNode(true)),
-													);
-													i += 1;
-													continue;
-												} else {
-													if (guard.isPrimitiveExpression(nextNode)) {
-														childNodes.push(createOptionExpression(node, nextNode));
-													}
-												}
+										const matcher = nodeMatchesAstDefinitionTypes(nextNode, type);
+										if (matcher.matches) {
+											if (matcher.matchType === "switch") {
+												childNodes.push(createOptionExpression(node, createBooleanNode(true)));
+												i += 1;
+												continue;
 											} else {
-												childNodes.push(
-													createInvalidNode(
-														`\`${matchingCommand.command}\` option '${
-															node.flag
-														}': type '${getFriendlyName(
-															nextNode,
-														)}' not assignable to type '${type.join(" | ")}'`,
-														node,
-													),
-												);
-												break;
+												if (guard.isPrimitiveExpression(nextNode)) {
+													childNodes.push(createOptionExpression(node, nextNode));
+												}
 											}
 										} else {
-											childNodes.push(createInvalidNode(`Invalid option '${node.flag}'`, node));
+											childNodes.push(
+												createInvalidNode(
+													`\`${matchingCommand.command}\` option '${
+														node.flag
+													}': type '${getFriendlyName(
+														nextNode,
+													)}' not assignable to type '${type.join(" | ")}'`,
+													node,
+												),
+											);
 											break;
 										}
-
-										i += 2;
 									} else {
-										childNodes.push(node);
-										i += 1;
+										childNodes.push(createInvalidNode(`Invalid option '${node.flag}'`, node));
+										break;
 									}
-								}
 
-								this.childNodes = childNodes;
+									i += 2;
+								} else {
+									childNodes.push(node);
+									i += 1;
+								}
+							}
+
+							this.childNodes = childNodes;
+						}
+
+						if (args) {
+							i = 0;
+							let a = 0;
+							while (i < this.childNodes.size()) {
+								const node = this.childNodes[i];
+								if (guard.isAssignableExpression(node)) {
+									const { type } = args[a];
+									const match = nodeMatchesAstDefinitionTypes(node, type);
+									if (!match.matches) {
+										this.childNodes.push(
+											createInvalidNode(
+												`\`${matchingCommand.command}\` argument#${a + 1} '${getFriendlyName(
+													node,
+												)}' not assignable to type '${type.join(" | ")}'`,
+												node,
+											),
+										);
+									}
+									a++;
+								}
+								i++;
 							}
 						}
 					} else if (this.options.invalidCommandIsError) {
@@ -615,6 +644,10 @@ export default class CommandAstParser {
 		this.commands = definitions;
 	}
 
+	public GetSource() {
+		return this.source;
+	}
+
 	/**
 	 * Parses the command source provided to this CommandAstParser
 	 */
@@ -785,11 +818,20 @@ export default class CommandAstParser {
 		return { success: true };
 	}
 
-	public static assert(node: Node) {
+	public static assert(node: Node, source?: string) {
 		const result = this.validate(node);
 		if (!result.success) {
 			const firstNode = result.errorNodes[0];
-			throw `[CmdParser] [${firstNode.node.startPos ?? 0}:${firstNode.node.endPos ?? 0}] ${firstNode.message}`;
+
+			if (source) {
+				throw `[CmdParser] '${source.sub(firstNode.node.startPos ?? 0, firstNode.node.endPos)}' - ${
+					firstNode.message
+				}`;
+			} else {
+				throw `[CmdParser] [${firstNode.node.startPos ?? 0}:${firstNode.node.endPos ?? 0}] ${
+					firstNode.message
+				}`;
+			}
 		}
 	}
 
