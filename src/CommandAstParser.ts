@@ -763,6 +763,9 @@ export default class CommandAstParser {
 			for (const child of node.children) {
 				this.validate(child, errorNodes);
 			}
+		} else if (guard.isBinaryExpression(node)) {
+			this.validate(node.left, errorNodes);
+			this.validate(node.right, errorNodes);
 		} else if (guard.isVariableStatement(node)) {
 			const {
 				declaration: { expression, identifier },

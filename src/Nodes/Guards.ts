@@ -15,6 +15,7 @@ import {
 	InterpolatedStringExpression,
 	NumberLiteral,
 	BooleanLiteral,
+	BinaryExpression,
 } from "./NodeTypes";
 import { NodeFlag, CmdSyntaxKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -149,6 +150,10 @@ export function isPrefixToken(node: Node): node is PrefixToken {
 
 export function isOperatorToken(node: Node): node is OperatorToken {
 	return node !== undefined && node.kind === CmdSyntaxKind.OperatorToken;
+}
+
+export function isBinaryExpression(node: Node): node is BinaryExpression {
+	return node !== undefined && node.kind === CmdSyntaxKind.BinaryExpression;
 }
 
 export function isOptionKey(node: Node): node is Option {
