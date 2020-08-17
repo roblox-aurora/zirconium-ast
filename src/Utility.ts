@@ -59,8 +59,12 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			} else {
 				print(prefix, CmdSyntaxKind[node.kind], node.value);
 			}
-		} else if (isNode(node, CmdSyntaxKind.Option)) {
-			print(prefix, CmdSyntaxKind[node.kind], node.flag);
+		} else if (isNode(node, CmdSyntaxKind.OptionKey)) {
+			if (verbose) {
+				print(prefix, CmdSyntaxKind[node.kind], node.flag, `[${node.startPos ?? 0}:${node.endPos ?? 0}]`);
+			} else {
+				print(prefix, CmdSyntaxKind[node.kind], node.flag);
+			}
 			prettyPrintNodes([node.right!], prefix + "\t", verbose);
 		} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 			if (verbose) {
@@ -121,8 +125,16 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "EndOfStatement");
 		} else if (isNode(node, CmdSyntaxKind.Invalid)) {
 			print(prefix, "SYNTAX ERROR", node.message);
+		} else if (isNode(node, CmdSyntaxKind.OptionExpression)) {
+			if (verbose) {
+				print(prefix, "OptionExpression", `[${node.startPos ?? 0}:${node.endPos ?? 0}]`, "{");
+			} else {
+				print(prefix, "OptionExpression", "{");
+			}
+			prettyPrintNodes([node.option, node.expression], prefix + "\t", verbose);
+			print(prefix, "}");
 		} else {
-			print(getNodeKindName(node));
+			print(prefix, getNodeKindName(node));
 		}
 	}
 }

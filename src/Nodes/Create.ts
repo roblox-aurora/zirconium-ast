@@ -11,7 +11,7 @@ import {
 	CommandSource,
 	NumberLiteral,
 	Identifier,
-	Option,
+	Option as OptionKey,
 	OperatorToken,
 	VariableDeclaration,
 	VariableStatement,
@@ -20,6 +20,7 @@ import {
 	InvalidNode,
 	BinaryExpression,
 	NodeError,
+	OptionExpression,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -129,8 +130,22 @@ export function createIdentifier(name: string): Identifier {
 	return { kind: CmdSyntaxKind.Identifier, name, flags: 0 };
 }
 
-export function createOption(flag: string): Option {
-	return { kind: CmdSyntaxKind.Option, flag, flags: 0 };
+export function createOptionKey(flag: string, endPos?: number): OptionKey {
+	return { kind: CmdSyntaxKind.OptionKey, flag, flags: 0, startPos: endPos ? endPos - flag.size() : 0, endPos };
+}
+
+export function createOptionExpression(
+	option: OptionKey,
+	expression: OptionExpression["expression"],
+): OptionExpression {
+	return {
+		kind: CmdSyntaxKind.OptionExpression,
+		startPos: option.startPos,
+		endPos: expression.endPos,
+		flags: 0,
+		option,
+		expression,
+	};
 }
 
 export function createOperator(operator: OperatorToken["operator"], startPos?: number): OperatorToken {

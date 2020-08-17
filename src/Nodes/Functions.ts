@@ -1,5 +1,5 @@
 import { CmdSyntaxKind } from "./Enum";
-import { Node, ParentNode } from "./NodeTypes";
+import { Node, ParentNode, BooleanLiteral } from "./NodeTypes";
 
 export function getKindName(kind: CmdSyntaxKind | undefined) {
 	if (kind === undefined) {
@@ -7,6 +7,18 @@ export function getKindName(kind: CmdSyntaxKind | undefined) {
 	}
 
 	return CmdSyntaxKind[kind];
+}
+
+export function getFriendlyName(node: Node, isConst = false) {
+	if (node.kind === CmdSyntaxKind.String || node.kind === CmdSyntaxKind.InterpolatedString) {
+		return "string";
+	} else if (node.kind === CmdSyntaxKind.Number) {
+		return "number";
+	} else if (node.kind === CmdSyntaxKind.Boolean) {
+		return isConst ? (node as BooleanLiteral).value : "boolean";
+	}
+
+	return getKindName(node.kind);
 }
 
 export function getNodeKindName(node: Node) {

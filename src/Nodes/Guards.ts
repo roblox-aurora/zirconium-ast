@@ -11,6 +11,10 @@ import {
 	PrefixToken,
 	OperatorToken,
 	Identifier,
+	Option,
+	InterpolatedStringExpression,
+	NumberLiteral,
+	BooleanLiteral,
 } from "./NodeTypes";
 import { NodeFlag, CmdSyntaxKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -79,6 +83,21 @@ export function isAssignableExpression(node: Node): node is NodeTypes[typeof ASS
 	return isNodeIn(node, ASSIGNABLE);
 }
 
+const LIT = [
+	CmdSyntaxKind.String,
+	CmdSyntaxKind.InterpolatedString,
+	CmdSyntaxKind.Identifier,
+	CmdSyntaxKind.Number,
+	CmdSyntaxKind.Boolean,
+] as const;
+
+/**
+ * Is this expression considered a primitive type?
+ */
+export function isPrimitiveExpression(node: Node): node is NodeTypes[typeof LIT[number]] {
+	return isNodeIn(node, ASSIGNABLE);
+}
+
 const EXPRESSIONABLE = [
 	CmdSyntaxKind.CommandStatement,
 	CmdSyntaxKind.VariableStatement,
@@ -108,6 +127,18 @@ export function isIdentifier(node: Node): node is Identifier {
 	return node !== undefined && node.kind === CmdSyntaxKind.Identifier;
 }
 
+export function isStringExpression(node: Node): node is StringLiteral | InterpolatedStringExpression {
+	return node !== undefined && (node.kind === CmdSyntaxKind.String || node.kind === CmdSyntaxKind.InterpolatedString);
+}
+
+export function isBooleanLiteral(node: Node): node is BooleanLiteral {
+	return node !== undefined && node.kind === CmdSyntaxKind.Boolean;
+}
+
+export function isNumberLiteral(node: Node): node is NumberLiteral {
+	return node !== undefined && node.kind === CmdSyntaxKind.Number;
+}
+
 export function isStringLiteral(node: Node): node is StringLiteral {
 	return node !== undefined && node.kind === CmdSyntaxKind.String;
 }
@@ -118,6 +149,10 @@ export function isPrefixToken(node: Node): node is PrefixToken {
 
 export function isOperatorToken(node: Node): node is OperatorToken {
 	return node !== undefined && node.kind === CmdSyntaxKind.OperatorToken;
+}
+
+export function isOptionKey(node: Node): node is Option {
+	return node !== undefined && node.kind === CmdSyntaxKind.OptionKey;
 }
 
 export function isInvalid(node: Node): node is InvalidNode {

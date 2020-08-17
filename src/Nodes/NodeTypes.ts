@@ -4,7 +4,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.CommandStatement]: CommandStatement;
 	[CmdSyntaxKind.CommandName]: CommandName;
 	[CmdSyntaxKind.String]: StringLiteral;
-	[CmdSyntaxKind.Option]: Option;
+	[CmdSyntaxKind.OptionKey]: Option;
 	[CmdSyntaxKind.EndOfStatement]: EndOfStatement;
 	[CmdSyntaxKind.Source]: CommandSource;
 	[CmdSyntaxKind.Identifier]: Identifier;
@@ -18,6 +18,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.VariableDeclaration]: VariableDeclaration;
 	[CmdSyntaxKind.VariableStatement]: VariableStatement;
 	[CmdSyntaxKind.Invalid]: InvalidNode;
+	[CmdSyntaxKind.OptionExpression]: OptionExpression;
 	[CmdSyntaxKind.InnerExpression]: InnerExpression;
 }
 
@@ -121,6 +122,11 @@ export interface NodeError {
 export interface Option extends NodeBase {
 	flag: string;
 	right?: Node;
+}
+
+export interface OptionExpression extends NodeBase {
+	option: Option;
+	expression: Identifier | StringLiteral | InterpolatedStringExpression | BooleanLiteral | NumberLiteral;
 }
 
 export const VALID_PREFIX_CHARS = ["~", "@", "%", "^", "*", "!"] as const;

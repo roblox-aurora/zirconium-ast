@@ -15,18 +15,19 @@ import {
 	createInvalidNode,
 	createInterpolatedString,
 	createIdentifier,
-	createOption,
+	createOptionKey,
 	createInnerExpression,
 	createOperator,
 	createPrefixToken,
 	createCommandSource,
 	createNodeError,
+	createOptionExpression,
 } from "./Nodes/Create";
 import { isNode, isValidPrefixCharacter, isPrefixableExpression, isAssignableExpression } from "./Nodes/Guards";
 import * as guard from "./Nodes/Guards";
 import { CmdSyntaxKind, NodeFlag } from "./Nodes";
-import { getNodeKindName, offsetNodePosition } from "./Nodes/Functions";
-import { AstCommandDefinitions, AstCommandDefinition } from "./Definitions/Definitions";
+import { getNodeKindName, offsetNodePosition, getFriendlyName } from "./Nodes/Functions";
+import { AstCommandDefinitions, AstCommandDefinition, nodeMatchesAstDefinition } from "./Definitions/Definitions";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
@@ -202,16 +203,19 @@ export default class CommandAstParser {
 			if (guard.isStringLiteral(firstNode) && firstNode.quotes === undefined) {
 				this.childNodes.push(createEndOfStatementNode());
 
+				const nameNodes = new Array<Node>();
+
 				const nameNode = createCommandName(firstNode);
 				this.childNodes[0] = nameNode;
+				nameNodes.push(nameNode);
 
 				if (this.commands.size() > 0) {
 					let matchingCommand = this.commands.find((c) => c.command === firstNode.text);
 
 					if (matchingCommand) {
 						if (matchingCommand.children !== undefined) {
-							// This is where we do some magic with subcommands. :-)
-							const i = 1;
+							// Pull the subcommands out, yo!
+							let i = 1;
 							while (i < this.childNodes.size()) {
 								const node = this.childNodes[i];
 								if (
@@ -219,18 +223,83 @@ export default class CommandAstParser {
 									matchingCommand.children !== undefined &&
 									guard.isStringLiteral(node)
 								) {
-									matchingCommand = matchingCommand.children.find((c) => c.command === node.text);
-									if (matchingCommand) {
-										this.childNodes[i] = createCommandName(node);
+									const mc: AstCommandDefinition | undefined = matchingCommand.children.find(
+										(c) => c.command === node.text,
+									);
+
+									if (mc) {
+										matchingCommand = mc;
+										const nameNode = createCommandName(node);
+										this.childNodes[i] = nameNode;
+										nameNodes.push(nameNode);
 									}
 								} else {
 									break;
 								}
+								i++;
+							}
+
+							const childNodes = [...nameNodes];
+							const { options } = matchingCommand;
+
+							if (options) {
+								// Now we handle option "merging"
+								while (i < this.childNodes.size()) {
+									const node = this.childNodes[i];
+									if (guard.isOptionKey(node)) {
+										const nextNode = this.childNodes[i + 1];
+										const option = options[node.flag];
+										if (option !== undefined) {
+											const { type } = option;
+
+											const matcher = nodeMatchesAstDefinition(nextNode, type);
+											if (matcher.matches) {
+												if (matcher.matchType === "switch") {
+													childNodes.push(
+														createOptionExpression(node, createBooleanNode(true)),
+													);
+													i += 1;
+													continue;
+												} else {
+													if (guard.isPrimitiveExpression(nextNode)) {
+														childNodes.push(createOptionExpression(node, nextNode));
+													}
+												}
+											} else {
+												childNodes.push(
+													createInvalidNode(
+														`\`${matchingCommand.command}\` option '${
+															node.flag
+														}': type '${getFriendlyName(
+															nextNode,
+														)}' not assignable to type '${type.join(" | ")}'`,
+														node,
+													),
+												);
+												break;
+											}
+										} else {
+											childNodes.push(createInvalidNode(`Invalid option '${node.flag}'`, node));
+											break;
+										}
+
+										i += 2;
+									} else {
+										childNodes.push(node);
+										i += 1;
+									}
+								}
+
+								this.childNodes = childNodes;
 							}
 						}
 					} else if (this.options.invalidCommandIsError) {
 						this.childNodes.push(createInvalidNode(`Invalid command '${firstNode.text}'`, firstNode));
 					}
+				} else {
+					warn(
+						"[CommandParser] No commands defined for AST, option nodes will not be properly accounted for.",
+					);
 				}
 
 				// Do final statement "combining" actions
@@ -464,7 +533,7 @@ export default class CommandAstParser {
 						this.tokens = this.kebabCaseToCamelCase(this.tokens);
 					}
 
-					this.childNodes.push(createOption(this.tokens));
+					this.childNodes.push(createOptionKey(this.tokens, this.ptr - 1));
 					this.tokens = "";
 				}
 				break;
@@ -478,7 +547,7 @@ export default class CommandAstParser {
 				this.tokens = this.kebabCaseToCamelCase(this.tokens);
 			}
 
-			this.childNodes.push(createOption(this.tokens));
+			this.childNodes.push(createOptionKey(this.tokens, this.ptr - 1));
 			this.tokens = "";
 		}
 	}
@@ -493,7 +562,7 @@ export default class CommandAstParser {
 				break;
 			}
 
-			this.childNodes.push(createOption(this.pop()));
+			this.childNodes.push(createOptionKey(this.pop()));
 		}
 	}
 
@@ -748,7 +817,7 @@ export default class CommandAstParser {
 				: node.text;
 		} else if (isNode(node, CmdSyntaxKind.Number)) {
 			return tostring(node.value);
-		} else if (isNode(node, CmdSyntaxKind.Option)) {
+		} else if (isNode(node, CmdSyntaxKind.OptionKey)) {
 			return node.flag.size() > 1 ? `--${node.flag}` : `-${node.flag}`;
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 			return this.render(node.left) + " " + this.render(node.operator) + " " + this.render(node.right);
@@ -776,6 +845,8 @@ export default class CommandAstParser {
 			return this.render(node.expression);
 		} else if (isNode(node, CmdSyntaxKind.InnerExpression)) {
 			return "$(" + this.render(node.expression) + ")";
+		} else if (isNode(node, CmdSyntaxKind.OptionExpression)) {
+			return this.render(node.option) + " " + this.render(node.expression);
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;
