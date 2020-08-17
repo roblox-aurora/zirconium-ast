@@ -247,11 +247,12 @@ export default class CommandAstParser {
 							}
 						}
 
-						const childNodes = [...nameNodes];
+						const childNodes = new Array<Node>();
 						const { options, args } = matchingCommand;
 
 						if (options) {
 							// Now we handle option "merging"
+							i = 0;
 							while (i < this.childNodes.size()) {
 								const node = this.childNodes[i];
 								if (guard.isOptionKey(node)) {
@@ -269,6 +270,8 @@ export default class CommandAstParser {
 											} else {
 												if (guard.isPrimitiveExpression(nextNode)) {
 													childNodes.push(createOptionExpression(node, nextNode));
+												} else {
+													childNodes.push(createInvalidNode(`IsNotPrimitive`, node));
 												}
 											}
 										} else {
@@ -757,7 +760,6 @@ export default class CommandAstParser {
 				} else if (guard.isNode(child, CmdSyntaxKind.Invalid)) {
 					this.validate(child, errorNodes);
 				} else {
-					print(getNodeKindName(child));
 					errorNodes.push(createNodeError(`'${this.render(child)}' is not a valid expression`, child));
 				}
 			}
