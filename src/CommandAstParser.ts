@@ -655,6 +655,8 @@ export default class CommandAstParser {
 		let valid = true;
 		let statementBegin = 0;
 		this.source = rawSource;
+		this.ptr = 0;
+		this.nodes = [];
 
 		while (this.ptr < this.source.size()) {
 			const char = this.next();
