@@ -10,6 +10,7 @@ local parsed = CommandAstParser.new({
     prefixExpressions = true,
     variableDeclarations = true,
     innerExpressions = true,
+    invalidCommandIsError = false,
     nestingInnerExpressions = true,
     commands = {
         { command = "cmd" },

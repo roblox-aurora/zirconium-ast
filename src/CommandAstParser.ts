@@ -67,6 +67,7 @@ interface ParserOptions {
 	maxNestedInnerExpressions: number;
 
 	commands: AstCommandDefinitions;
+	invalidCommandIsError: boolean;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
@@ -80,6 +81,7 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
 	maxNestedInnerExpressions: 1,
+	invalidCommandIsError: true,
 	commands: [],
 };
 
@@ -185,6 +187,8 @@ export default class CommandAstParser {
 	 *
 	 * ### CommandStatement
 	 * `cmd [--options ...] [arg1 arg2 ...]`
+	 *
+	 * `cmd subcommand [--options ...] [arg1 arg2 ...]` (if using commands option)
 	 * ### VariableDeclarationStatement
 	 * `$var = [expression]`
 	 */
@@ -222,7 +226,7 @@ export default class CommandAstParser {
 								break;
 							}
 						}
-					} else {
+					} else if (this.options.invalidCommandIsError) {
 						this.childNodes.push(createInvalidNode(`Invalid command '${firstNode.text}'`, firstNode));
 					}
 				}
