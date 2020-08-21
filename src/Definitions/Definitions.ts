@@ -9,7 +9,7 @@ interface AstBaseDefinition {
 }
 
 export interface AstArgumentDefinition extends AstBaseDefinition {
-	varadic?: true;
+	variadic?: true;
 }
 export interface AstOptionDefinition extends AstBaseDefinition {}
 

@@ -121,11 +121,11 @@ export default class CommandAstParser {
 				for (const [i, arg] of command.args.entries()) {
 					assert(typeIs(arg.type, "table"), "prop 'type' should be of type table");
 					assert(
-						arg.varadic === undefined || typeIs(arg.varadic, "boolean"),
+						arg.variadic === undefined || typeIs(arg.variadic, "boolean"),
 						"prop 'varadic' should be a boolean",
 					);
 					assert(
-						arg.varadic === undefined || i === command.args.size() - 1,
+						arg.variadic === undefined || i === command.args.size() - 1,
 						"prop 'varadic' should only be on last argument",
 					);
 				}
@@ -330,7 +330,7 @@ export default class CommandAstParser {
 							while (i < this.childNodes.size()) {
 								const node = this.childNodes[i];
 								if (guard.isAssignableExpression(node)) {
-									const arg = a + 1 in args ? args[a] : lastArg.varadic ? lastArg : undefined;
+									const arg = a + 1 in args ? args[a] : lastArg.variadic ? lastArg : undefined;
 									// If is argument
 									if (arg) {
 										const { type } = arg;
