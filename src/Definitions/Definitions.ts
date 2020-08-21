@@ -8,7 +8,9 @@ interface AstBaseDefinition {
 	readonly type: readonly AstPrimitiveType[];
 }
 
-export interface AstArgumentDefinition extends AstBaseDefinition {}
+export interface AstArgumentDefinition extends AstBaseDefinition {
+	varadic?: true;
+}
 export interface AstOptionDefinition extends AstBaseDefinition {}
 
 export interface AstCommandDefinition {

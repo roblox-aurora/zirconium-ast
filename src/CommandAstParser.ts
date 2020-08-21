@@ -114,6 +114,25 @@ export default class CommandAstParser {
 		this.commands = this.options.commands;
 	}
 
+	private validateCommandDefinitions() {
+		for (const command of this.commands) {
+			assert(typeIs(command.command, "string"));
+			if (command.args !== undefined) {
+				for (const [i, arg] of command.args.entries()) {
+					assert(typeIs(arg.type, "table"), "prop 'type' should be of type table");
+					assert(
+						arg.varadic === undefined || typeIs(arg.varadic, "boolean"),
+						"prop 'varadic' should be a boolean",
+					);
+					assert(
+						arg.varadic === undefined || i === command.args.size() - 1,
+						"prop 'varadic' should only be on last argument",
+					);
+				}
+			}
+		}
+	}
+
 	private next(offset = 0) {
 		return this.source.sub(this.ptr + offset, this.ptr + offset);
 	}
@@ -305,22 +324,45 @@ export default class CommandAstParser {
 						if (args) {
 							i = 0;
 							let a = 0;
+
+							const lastArg = args[args.size() - 1];
+
 							while (i < this.childNodes.size()) {
 								const node = this.childNodes[i];
 								if (guard.isAssignableExpression(node)) {
-									const { type } = args[a];
-									const match = nodeMatchesAstDefinitionTypes(node, type);
-									if (!match.matches) {
+									const arg = a + 1 in args ? args[a] : lastArg.varadic ? lastArg : undefined;
+									// If is argument
+									if (arg) {
+										const { type } = arg;
+										const match = nodeMatchesAstDefinitionTypes(node, type);
+										if (!match.matches) {
+											this.childNodes.push(
+												createInvalidNode(
+													`\`${matchingCommand.command}\` argument#${
+														a + 1
+													} '${getFriendlyName(node)}' not assignable to type '${type.join(
+														" | ",
+													)}'`,
+													node,
+												),
+											);
+										}
+										a++;
+									} else {
 										this.childNodes.push(
 											createInvalidNode(
-												`\`${matchingCommand.command}\` argument#${a + 1} '${getFriendlyName(
-													node,
-												)}' not assignable to type '${type.join(" | ")}'`,
+												`\`${matchingCommand.command}\` argument #${
+													a + 1
+												} of type '${getFriendlyName(node)}' (${
+													a + 1
+												} of ${args.size()}) exceeds arguments list : [ ${args
+													.map((a) => a.type.join(" | "))
+													.join(", ")} ] `,
 												node,
 											),
 										);
+										break;
 									}
-									a++;
 								}
 								i++;
 							}
@@ -655,6 +697,8 @@ export default class CommandAstParser {
 	 * Parses the command source provided to this CommandAstParser
 	 */
 	public Parse(rawSource: string): CommandSource {
+		this.validateCommandDefinitions();
+
 		let valid = true;
 		let statementBegin = 0;
 		this.source = rawSource;
