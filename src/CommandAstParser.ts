@@ -54,7 +54,7 @@ const enum TOKEN {
 	BACKSLASH = "\\",
 }
 
-interface ParserOptions {
+export interface ParserOptions {
 	variables: boolean;
 	options: boolean;
 	operators: boolean;
