@@ -73,7 +73,9 @@ interface ParserOptions {
 	maxNestedInnerExpressions: number;
 
 	commands: AstCommandDefinitions;
-	invalidCommandIsError: boolean;
+
+	/** Whether or not to enable strict mode */
+	strictCommands: boolean;
 }
 
 const DEFAULT_PARSER_OPTIONS: ParserOptions = {
@@ -86,8 +88,8 @@ const DEFAULT_PARSER_OPTIONS: ParserOptions = {
 	operators: true,
 	interpolatedStrings: true,
 	kebabArgumentsToCamelCase: true,
+	strictCommands: true,
 	maxNestedInnerExpressions: 1,
-	invalidCommandIsError: true,
 	commands: [],
 };
 
@@ -367,13 +369,17 @@ export default class CommandAstParser {
 								i++;
 							}
 						}
-					} else if (this.options.invalidCommandIsError) {
+					} else if (this.options.strictCommands) {
 						this.childNodes.push(createInvalidNode(`Invalid command '${firstNode.text}'`, firstNode));
 					}
 				} else {
-					warn(
-						"[CommandParser] No commands defined for AST, option nodes will not be properly accounted for.",
-					);
+					if (this.options.strictCommands) {
+						this.childNodes.push(createInvalidNode(`Invalid command '${firstNode.text}'`, firstNode));
+					} else {
+						warn(
+							"[CommandParser] No commands defined for AST, option nodes will not be properly accounted for.",
+						);
+					}
 				}
 
 				// Do final statement "combining" actions
