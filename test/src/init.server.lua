@@ -41,6 +41,7 @@ local parsed = parser:Parse([[
     # cmd1 "Hello $playerName!"
     # cmd2 sub test --test hello
     # cmd2 sub --test true
+    if $x
 ]]);
 
 

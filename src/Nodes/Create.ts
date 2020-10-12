@@ -21,6 +21,7 @@ import {
 	BinaryExpression,
 	NodeError,
 	OptionExpression,
+	IfStatement,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -39,6 +40,14 @@ export function createNodeError(message: string, node: Node): NodeError {
 		node,
 		message,
 	};
+}
+
+export function createIfStatement(
+	condition: IfStatement["condition"],
+	thenStatement: IfStatement["thenStatement"],
+	elseStatement: IfStatement["elseStatement"],
+): IfStatement {
+	return { kind: CmdSyntaxKind.IfStatement, flags: 0, condition, thenStatement, elseStatement };
 }
 
 /**

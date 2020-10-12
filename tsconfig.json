@@ -14,7 +14,8 @@
 		"rootDir": "src",
 		"outDir": "out",
 		"baseUrl": "src",
-		"declaration": true
+		"declaration": true,
+		"incremental": true
 	},
 	"exclude": [
 		"example/**",

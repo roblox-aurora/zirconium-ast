@@ -22,23 +22,25 @@ import {
 	createCommandSource,
 	createNodeError,
 	createOptionExpression,
+	createIfStatement,
 } from "./Nodes/Create";
 import { isNode, isValidPrefixCharacter, isPrefixableExpression, isAssignableExpression } from "./Nodes/Guards";
 import * as guard from "./Nodes/Guards";
 import { CmdSyntaxKind, NodeFlag } from "./Nodes";
 import { getNodeKindName, offsetNodePosition, getFriendlyName } from "./Nodes/Functions";
-import {
-	AstCommandDefinitions,
-	AstCommandDefinition,
-	nodeMatchesAstDefinitionTypes,
-	nodeMatchAstDefinitionType,
-} from "./Definitions/Definitions";
+import { AstCommandDefinitions, AstCommandDefinition, nodeMatchesAstDefinitionTypes } from "./Definitions/Definitions";
 
 const enum OperatorLiteralToken {
 	AndAsync = "&",
 	And = "&&",
 	Pipe = "|",
 }
+
+const Keyword = {
+	If: "if",
+} as const;
+
+const KEYWORDS: string[] = [Keyword.If];
 
 const enum TOKEN {
 	SPACE = " ",
@@ -176,6 +178,16 @@ export default class CommandAstParser {
 				node.startPos = this.ptr - this.tokens.size() - 1;
 				node.endPos = this.ptr - 1;
 				node.rawText = this.tokens;
+			} else if (KEYWORDS.includes(this.tokens)) {
+				// create empty if statement
+				if (this.tokens === Keyword.If) {
+					node = createIfStatement(undefined, undefined, undefined);
+					node.startPos = this.ptr - this.tokens.size() - 1;
+					node.endPos = this.ptr - 1;
+					node.rawText = this.tokens;
+				} else {
+					throw `Unhandled expression: ${this.tokens}`;
+				}
 			} else {
 				node = createStringNode(this.tokens, options?.quotes);
 				node.isUnterminated = options?.isUnterminated;
@@ -225,6 +237,16 @@ export default class CommandAstParser {
 		// If we have child nodes, we'll work with what we have...
 		if (this.childNodes.size() > 0) {
 			const firstNode = this.getNodeAt(0, this.childNodes);
+
+			if (guard.isNode(firstNode, CmdSyntaxKind.IfStatement)) {
+				const nextNode = this.getNodeAt(1, this.childNodes);
+				if (isNode(nextNode, CmdSyntaxKind.Block) || isNode(nextNode, CmdSyntaxKind.VariableStatement)) {
+					firstNode.thenStatement = nextNode;
+					this.popChildNode(1);
+				} else {
+					this.childNodes.push(createInvalidNode(`This is not a valid expression`, nextNode));
+				}
+			}
 
 			if (guard.isStringLiteral(firstNode) && firstNode.quotes === undefined) {
 				this.childNodes.push(createEndOfStatementNode());
@@ -946,6 +968,20 @@ export default class CommandAstParser {
 			return "$(" + this.render(node.expression) + ")";
 		} else if (isNode(node, CmdSyntaxKind.OptionExpression)) {
 			return this.render(node.option) + " " + this.render(node.expression);
+		} else if (isNode(node, CmdSyntaxKind.IfStatement)) {
+			if (node.condition) {
+				if (node.thenStatement && node.elseStatement) {
+					return `if (${node.condition}) ${this.render(node.thenStatement)} else ${this.render(
+						node.elseStatement,
+					)}`;
+				} else if (node.thenStatement) {
+					return `if (${node.condition}) ${this.render(node.thenStatement)}`;
+				} else {
+					return `if (${node.condition})`;
+				}
+			} else {
+				return "if";
+			}
 		} else {
 			// eslint-disable-next-line roblox-ts/lua-truthiness
 			throw `Cannot Render SyntaxKind ${getNodeKindName(node)}`;

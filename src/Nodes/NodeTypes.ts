@@ -2,6 +2,8 @@ import type { CmdSyntaxKind, NodeFlag } from "./Enum";
 
 export interface NodeTypes {
 	[CmdSyntaxKind.CommandStatement]: CommandStatement;
+	[CmdSyntaxKind.IfStatement]: IfStatement;
+	[CmdSyntaxKind.Block]: Block;
 	[CmdSyntaxKind.CommandName]: CommandName;
 	[CmdSyntaxKind.String]: StringLiteral;
 	[CmdSyntaxKind.OptionKey]: Option;
@@ -90,6 +92,19 @@ export interface StringLiteral extends NodeBase {
 	quotes?: string;
 	isUnterminated?: boolean;
 	text: string;
+}
+
+export interface Block extends NodeBase {
+	kind: CmdSyntaxKind.Block;
+	statements: (CommandStatement | VariableStatement)[];
+}
+
+export type Statement = CommandStatement | VariableStatement;
+export interface IfStatement extends NodeBase {
+	kind: CmdSyntaxKind.IfStatement;
+	condition: Identifier | undefined;
+	thenStatement: Block | Statement | undefined;
+	elseStatement: Block | Statement | undefined;
 }
 
 export interface BooleanLiteral extends NodeBase {
