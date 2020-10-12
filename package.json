@@ -1,11 +1,11 @@
 {
-  "name": "@rbxts/cmd-ast",
-  "version": "1.0.0-alpha.2",
-  "description": "Command parser that creates an AST for use by command frameworks on ROBLOX",
+  "name": "@rbxts/zirconium-ast",
+  "version": "1.0.0-alpha.3",
+  "description": "Parser for Zirconium",
   "main": "out/init.lua",
   "scripts": {
-    "prepare": "rbxtsc-dev --type=package",
-    "build": "rbxtsc-dev --type=package",
+    "prepare": "rbxtsc --type=package",
+    "build": "rbxtsc --type=package",
     "serve": "rojo serve ./test/.project.json --port 9000"
   },
   "keywords": [],
@@ -16,7 +16,7 @@
   },
   "types": "out/index.d.ts",
   "devDependencies": {
-    "@rbxts/types": "^1.0.373",
+    "@rbxts/types": "^1.0.416",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "eslint": "^7.3.1",
