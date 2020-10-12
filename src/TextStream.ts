@@ -23,9 +23,16 @@ export default class ZrTextStream {
 	}
 
 	/**
+	 * Resets the stream pointer to the beginning.
+	 */
+	public reset() {
+		this.ptr = 0;
+	}
+
+	/**
 	 * Whether or not there's a next character in the stream
 	 */
 	public hasNext() {
-		return this.peek() !== "";
+		return this.ptr < this.source.size();
 	}
 }

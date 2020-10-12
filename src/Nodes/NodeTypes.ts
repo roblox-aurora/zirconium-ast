@@ -36,7 +36,7 @@ export interface NodeBase {
 type OP = "&&" | "|" | "=";
 
 export interface OperatorToken extends NodeBase {
-	operator: OP;
+	operator: string;
 	kind: CmdSyntaxKind.OperatorToken;
 }
 
@@ -99,10 +99,17 @@ export interface Block extends NodeBase {
 	statements: (CommandStatement | VariableStatement)[];
 }
 
+export type ExpressionStatement =
+	| NumberLiteral
+	| BooleanLiteral
+	| StringLiteral
+	| InterpolatedStringExpression
+	| Identifier
+	| BinaryExpression;
 export type Statement = CommandStatement | VariableStatement;
 export interface IfStatement extends NodeBase {
 	kind: CmdSyntaxKind.IfStatement;
-	condition: Identifier | undefined;
+	condition: ExpressionStatement | undefined;
 	thenStatement: Block | Statement | undefined;
 	elseStatement: Block | Statement | undefined;
 }
