@@ -1,5 +1,6 @@
 import ZrTextStream from "TextStream";
 import {
+	EndOfStatementToken,
 	IdentifierToken,
 	InterpolatedStringToken,
 	joinInterpolatedString,
@@ -26,7 +27,8 @@ const enum TokenCharacter {
  */
 export default class ZrLexer {
 	private static readonly OPERATORS = ["&", "|", "=", ">", "<"];
-	private static readonly SPECIAL = ["(", ")", ",", ";", "{", "}", "\n"];
+	private static readonly ENDOFSTATEMENT = [";", "\n"];
+	private static readonly SPECIAL = ["(", ")", ",", "{", "}"];
 
 	public constructor(private stream: ZrTextStream) {}
 
@@ -151,6 +153,7 @@ export default class ZrLexer {
 			(c) =>
 				this.isNotEndOfStatement(c) &&
 				!this.isWhitespace(c) &&
+				!this.isSpecial(c) &&
 				c !== TokenCharacter.DoubleQuote &&
 				c !== TokenCharacter.SingleQuote &&
 				c !== "\n",
@@ -232,6 +235,13 @@ export default class ZrLexer {
 			return identity<OperatorToken>({
 				kind: ZrTokenKind.Operator,
 				value: this.readWhile((c) => ZrLexer.OPERATORS.includes(c)),
+			});
+		}
+
+		if (ZrLexer.ENDOFSTATEMENT.includes(char)) {
+			return identity<EndOfStatementToken>({
+				kind: ZrTokenKind.EndOfStatement,
+				value: this.stream.next(),
 			});
 		}
 

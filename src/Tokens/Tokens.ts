@@ -8,9 +8,10 @@ export const enum ZrTokenKind {
 	Operator = "Operator",
 	Special = "Special",
 	Keyword = "Keyword",
+	EndOfStatement = "EndOfStatement",
 }
 
-export const KEYWORDS = ["if"];
+export const KEYWORDS = ["if", "else"];
 
 export interface TokenTypes {
 	[ZrTokenKind.Identifier]: IdentifierToken;
@@ -20,6 +21,7 @@ export interface TokenTypes {
 	[ZrTokenKind.Special]: SpecialToken;
 	[ZrTokenKind.Keyword]: KeywordToken;
 	[ZrTokenKind.InterpolatedString]: InterpolatedStringToken;
+	[ZrTokenKind.EndOfStatement]: EndOfStatementToken;
 }
 
 export interface TokenBase {
@@ -33,6 +35,11 @@ export interface IdentifierToken extends TokenBase {
 
 export interface SpecialToken extends TokenBase {
 	kind: ZrTokenKind.Special;
+	value: string;
+}
+
+export interface EndOfStatementToken extends TokenBase {
+	kind: ZrTokenKind.EndOfStatement;
 	value: string;
 }
 

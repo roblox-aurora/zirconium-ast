@@ -9,8 +9,12 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local stream = ZrTextStream.new([[
-    echo "Hello, World!" 10 true
-    echo "This is $variable" "This is $sparta!!! lol"
+    $x = 10
+    if $x >= 10 { 
+        echo "$x is greater than 10!"
+    } else {
+        echo "$x is less than 10!"
+    }
 ]])
 local lexer = ZrLexer.new(stream)
 
