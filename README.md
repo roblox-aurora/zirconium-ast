@@ -1,6 +1,7 @@
-Command AST
+Zirconium AST
 ==============
-**A**bstract **S**yntax **T**ree generator for commands on Roblox.
+**A**bstract **S**yntax **T**ree parser for the Zirconium DSL (Domain-specific Language) for Roblox.
+More information in the [Zirconium project](https://github.com/roblox-aurora/zirconium).
 
 ## Supported Syntaxes
 - Comments 
