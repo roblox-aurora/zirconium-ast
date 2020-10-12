@@ -26,7 +26,7 @@ const enum TokenCharacter {
  * The lexer for Zirconium
  */
 export default class ZrLexer {
-	private static readonly OPERATORS = ["&", "|", "=", ">", "<"];
+	private static readonly OPERATORS = ["&", "|", "=", ">", "<", "-"];
 	private static readonly ENDOFSTATEMENT = [";", "\n"];
 	private static readonly SPECIAL = ["(", ")", ",", "{", "}"];
 
@@ -84,7 +84,6 @@ export default class ZrLexer {
 		let str = "";
 		const src = new Array<string>();
 		const vars = new Array<string>();
-		const joined = new Array<string>();
 		let escaped = false;
 
 		this.stream.next(); // eat start character
@@ -99,11 +98,9 @@ export default class ZrLexer {
 				break;
 			} else if (char === TokenCharacter.Dollar) {
 				src.push(str);
-				joined.push(str);
 				str = "";
 				const id = this.readWhile(this.isId);
 				vars.push(id);
-				joined.push("$" + id);
 				continue;
 			}
 
@@ -112,10 +109,9 @@ export default class ZrLexer {
 
 		if (str !== "") {
 			src.push(str);
-			joined.push(str);
 		}
 
-		return [src, vars, joined];
+		return [src, vars];
 	}
 
 	/**
@@ -124,12 +120,13 @@ export default class ZrLexer {
 	 */
 	private readComment() {
 		const result = this.readWhile(this.isNotNewline);
+		print(result);
 		this.stream.next(); // nom the newline
 		return result;
 	}
 
 	private readStringToken(startCharacter: string) {
-		const [values, variables, joined] = this.parseLongString(startCharacter);
+		const [values, variables] = this.parseLongString(startCharacter);
 
 		if (variables.size() === 0) {
 			return identity<StringToken>({
@@ -195,27 +192,23 @@ export default class ZrLexer {
 		};
 	}
 
-	private current: Token | undefined;
-	public peek() {
-		this.current = this.current ?? this.next();
-		return this.current;
-	}
-
 	/**
 	 * Gets the next token
 	 */
-	public next(): Token | undefined {
-		this.current = undefined;
-		if (!this.stream.hasNext()) return undefined;
-
+	private readNext(): Token | undefined {
 		// skip whitespace
 		this.readWhile(this.isWhitespace);
+
+		if (!this.stream.hasNext()) {
+			return undefined;
+		}
 
 		// Get the next token
 		const char = this.stream.peek();
 
 		if (char === TokenCharacter.Hash) {
 			this.readComment();
+			return this.readNext();
 		}
 
 		if (char === TokenCharacter.Dollar) {
@@ -253,6 +246,18 @@ export default class ZrLexer {
 		}
 
 		return this.readLiteralString();
+	}
+
+	private currentToken: Token | undefined;
+	public peek() {
+		this.currentToken = this.currentToken ?? this.readNext();
+		return this.currentToken;
+	}
+
+	public next() {
+		const token = this.currentToken ?? this.readNext();
+		this.currentToken = undefined;
+		return token;
 	}
 
 	public hasNext() {

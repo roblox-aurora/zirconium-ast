@@ -1,15 +1,28 @@
+import { AstCommandDefinitions } from "Definitions/Definitions";
 import ZrLexer from "Lexer";
 import {
 	createBinaryExpression,
+	createCommandName,
 	createCommandSource,
+	createCommandStatement,
 	createIdentifier,
 	createIfStatement,
+	createInterpolatedString,
+	createInvalidNode,
 	createNumberNode,
 	createOperator,
 	createStringNode,
 } from "Nodes/Create";
-import { ExpressionStatement, Node, NodeError, OperatorToken, Statement } from "Nodes/NodeTypes";
-import { isToken, ZrTokenKind } from "Tokens/Tokens";
+import {
+	ExpressionStatement,
+	Identifier,
+	Node,
+	NodeError,
+	OperatorToken,
+	Statement,
+	StringLiteral,
+} from "Nodes/NodeTypes";
+import { InterpolatedStringToken, isToken, StringToken, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"=": 1,
@@ -28,14 +41,26 @@ const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"%": 20,
 };
 
+interface ZrParserOptions {
+	commands: AstCommandDefinitions;
+}
+
 export default class ZrParser {
 	private errors = new Array<NodeError>();
-	public constructor(private lexer: ZrLexer) {}
+	private isParsingCommand = false;
+	public constructor(private lexer: ZrLexer, private options: ZrParserOptions) {}
 
 	private peekLexer() {
 		return this.lexer.peek();
 	}
 
+	private throwParserError(message: string): never {
+		throw `[ZParser] Parsing Error: ${message}`;
+	}
+
+	/**
+	 * Checks whether or not the specified token kind is the current
+	 */
 	private is(kind: ZrTokenKind, value?: string | number | boolean) {
 		const token = this.lexer.peek();
 		if (value !== undefined) {
@@ -45,10 +70,16 @@ export default class ZrParser {
 		}
 	}
 
-	public get(kind: ZrTokenKind, value?: string | number | boolean) {
-		return this.is(kind, value) ? this.lexer.peek()! : undefined;
+	/**
+	 * Gets the token of the specified kind, if it's the next token
+	 */
+	public get<K extends keyof TokenTypes>(kind: K, value?: TokenTypes[K]["value"]): TokenTypes[K] | undefined {
+		return this.is(kind, value) ? (this.lexer.peek()! as TokenTypes[K]) : undefined;
 	}
 
+	/**
+	 * Skips a token of a specified kind if it's the next
+	 */
 	private skip(kind: ZrTokenKind, value: string | number | boolean) {
 		if (this.is(kind, value)) {
 			this.lexer.next();
@@ -63,34 +94,92 @@ export default class ZrParser {
 
 	private parseIfStatement() {
 		this.skip(ZrTokenKind.Keyword, "if");
-		const node = createIfStatement(this.parseExpression(), undefined, undefined);
+		const node = createIfStatement(this.parseNextExpression(), undefined, undefined);
+
+		return node;
 	}
 
-	private parseExpressionStatement() {
+	private parseCommandStatement(token: StringToken) {
+		const commandName = createCommandName(createStringNode(token.value));
+
+		const nodes = new Array<Node>();
+		nodes.push(commandName);
+
+		while (this.lexer.hasNext() && !this.isNextEndOfStatement()) {
+			this.isParsingCommand = true;
+			nodes.push(this.parseNextExpression());
+			this.isParsingCommand = false;
+		}
+
+		return createCommandStatement(commandName, nodes);
+	}
+
+	/**
+	 * Handles the parsing of a `InterpolatedStringToken`
+	 * @param token The `InterpolatedStringToken`
+	 * @returns the InterpolatedStringExpression
+	 */
+	private parseInterpolatedString(token: InterpolatedStringToken) {
+		const { values, variables } = token;
+		const resulting = new Array<StringLiteral | Identifier>();
+		for (const [k, v] of values.entries()) {
+			resulting.push(createStringNode(v));
+
+			const matchingVar = variables[k];
+			if (matchingVar !== undefined) {
+				resulting.push(createIdentifier(matchingVar));
+			}
+		}
+		return createInterpolatedString(...resulting);
+	}
+
+	/**
+	 * Parses the next expression statement
+	 */
+	private parseNextExpressionStatement() {
 		const nextNode = this.lexer.peek();
 		print("parseExpressionStatement", nextNode?.kind, nextNode?.value);
 
 		if (this.is(ZrTokenKind.Keyword, "if")) {
-			// return this.parseIfStatement();
+			return this.parseIfStatement();
 		}
 
 		// Handle literals
-		const next = this.lexer.next();
-		assert(next);
-		if (isToken(next, ZrTokenKind.Identifier)) {
-			return createIdentifier(next.value);
-		} else if (isToken(next, ZrTokenKind.Number)) {
-			return createNumberNode(next.value);
-		} else if (isToken(next, ZrTokenKind.String)) {
-			return createStringNode(next.value, next.quotes);
+		const token = this.lexer.next();
+		assert(token);
+
+		if (isToken(token, ZrTokenKind.String)) {
+			if (this.isParsingCommand || token.quotes !== undefined) {
+				return createStringNode(token.value, token.quotes);
+			} else if (token.value !== "") {
+				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
+				return this.parseCommandStatement(token);
+			}
 		}
 
-		throw `Invalid tokenKind ${next.kind} '${next.value}' (${next.value.byte()[0]})`;
+		if (isToken(token, ZrTokenKind.Identifier)) {
+			return createIdentifier(token.value);
+		} else if (isToken(token, ZrTokenKind.Number)) {
+			return createNumberNode(token.value);
+		} else if (isToken(token, ZrTokenKind.InterpolatedString)) {
+			return this.parseInterpolatedString(token);
+		}
+
+		this.throwParserError(
+			`Unable to generate ExpressionStatement from tokenKind {kind: ${token.kind}, value: ${token.value}} (${
+				token.value.byte()[0]
+			})`,
+		);
 	}
 
+	/**
+	 * Mutates expression statements if required
+	 *
+	 * If the expression is a binary expression, it will mutate the expression accordingly
+	 */
 	private mutateExpressionStatement(left: ExpressionStatement, precedence = 0): ExpressionStatement {
 		const token = this.get(ZrTokenKind.Operator);
-		if (token && isToken(token, ZrTokenKind.Operator)) {
+		if (token) {
 			const otherPrecedence = OPERATOR_PRECEDENCE[token.value];
 			if (otherPrecedence > precedence) {
 				print("createBInary");
@@ -98,7 +187,7 @@ export default class ZrParser {
 				return createBinaryExpression(
 					left,
 					createOperator(token.value),
-					this.mutateExpressionStatement(this.parseExpressionStatement()),
+					this.mutateExpressionStatement(this.parseNextExpressionStatement()),
 				);
 			}
 		}
@@ -106,16 +195,19 @@ export default class ZrParser {
 		return left;
 	}
 
-	private parseExpression() {
-		return this.mutateExpressionStatement(this.parseExpressionStatement());
+	/**
+	 * Parse the next expression
+	 */
+	private parseNextExpression() {
+		return this.mutateExpressionStatement(this.parseNextExpressionStatement());
 	}
 
-	private isEndOfStatement() {
-		return this.is(ZrTokenKind.Special, ";") || this.is(ZrTokenKind.Special, "\n");
+	private isNextEndOfStatement() {
+		return this.is(ZrTokenKind.EndOfStatement, ";") || this.is(ZrTokenKind.EndOfStatement, "\n");
 	}
 
-	private skipEndOfStatement() {
-		if (this.isEndOfStatement()) {
+	private skipNextEndOfStatement() {
+		if (this.isNextEndOfStatement()) {
 			this.lexer.next();
 		} else {
 			const token = this.lexer.peek();
@@ -129,21 +221,15 @@ export default class ZrParser {
 	private parseSource() {
 		const source = new Array<Node>();
 
+		// print(this.lexer.peek()?.kind, this.lexer.peek()?.value);
+
 		while (this.lexer.hasNext()) {
-			// Skip out ';' and '\n'
-			if (this.isEndOfStatement()) {
-				this.skipEndOfStatement();
-			}
-
-			const next = this.lexer.peek();
-			print(next?.kind, next?.value);
-
-			const expression = this.parseExpression();
+			const expression = this.parseNextExpression();
 			source.push(expression);
 
-			while (this.lexer.hasNext() && this.isEndOfStatement()) {
-				print("skip", this.lexer.peek()?.kind);
-				this.skipEndOfStatement();
+			while (this.lexer.hasNext() && this.isNextEndOfStatement()) {
+				print("skip", this.lexer.peek()?.kind ?? "none");
+				this.skipNextEndOfStatement();
 			}
 		}
 

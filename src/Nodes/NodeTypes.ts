@@ -105,7 +105,9 @@ export type ExpressionStatement =
 	| StringLiteral
 	| InterpolatedStringExpression
 	| Identifier
-	| BinaryExpression;
+	| BinaryExpression
+	| IfStatement
+	| CommandStatement;
 export type Statement = CommandStatement | VariableStatement;
 export interface IfStatement extends NodeBase {
 	kind: CmdSyntaxKind.IfStatement;

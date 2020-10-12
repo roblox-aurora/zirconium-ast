@@ -36,15 +36,15 @@ local parser = CommandAstParser.new({
     }
 })
 
-local parsed = parser:Parse([[
-    # Subcommand testing
-    # cmd1 "Hello $playerName!"
-    # cmd2 sub test --test hello
-    # cmd2 sub --test true
-    if $x
-]]);
+-- local parsed = parser:Parse([[
+--     # Subcommand testing
+--     # cmd1 "Hello $playerName!"
+--     # cmd2 sub test --test hello
+--     # cmd2 sub --test true
+--     if $x
+-- ]]);
 
 
-print(CommandAstParser:render(parsed))
-prettyPrintNodes({parsed}, nil, true)
-CommandAstParser:assert(parsed, parser:GetSource())
+-- print(CommandAstParser:render(parsed))
+-- prettyPrintNodes({parsed}, nil, true)
+-- CommandAstParser:assert(parsed, parser:GetSource())

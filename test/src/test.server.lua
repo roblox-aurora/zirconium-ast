@@ -9,12 +9,11 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local stream = ZrTextStream.new([[
-    $x = 10
-    if $x >= 10 { 
-        echo "$x is greater than 10!"
-    } else {
-        echo "$x is less than 10!"
-    }
+    # I want to kill myself
+    echo "Hello, World!"
+
+    # Nevermind then...
+    echo "Hello there. $boy!"
 ]])
 local lexer = ZrLexer.new(stream)
 
@@ -26,9 +25,32 @@ while lexer:hasNext() do
     end
 end
 
--- lexer:reset()
+lexer:reset()
 
--- local parser = ZrParser.new(lexer)
--- local parsed = parser:parse()
+local parser = ZrParser.new(lexer, {
+    commands = {
+        { command = "void" },
+        { 
+            command = "cmd1", 
+            args = {
+                { 
+                    type = {"string"}
+                }
+            } 
+        },
+        { command = "cmd2", children = {
+            { 
+                command = "sub", 
+                options = {
+                    test = { type = {"string", "number"} }
+                },
+                args = {
+                    {type = {"string"} }
+                }
+            }
+        }}
+    }
+})
+local parsed = parser:parse()
 
--- prettyPrintNodes({parsed}, nil, false)
+prettyPrintNodes({parsed}, nil, false)
