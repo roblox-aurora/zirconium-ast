@@ -33,6 +33,7 @@ import { prettyPrintNodes } from "Utility";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"=": 1,
+	"|": 2,
 	"||": 2,
 	"&&": 3,
 	"<": 7,
@@ -106,13 +107,17 @@ export default class ZrParser {
 		return node;
 	}
 
+	private isOperatorToken() {
+		return this.is(ZrTokenKind.Operator);
+	}
+
 	private parseCommandStatement(token: StringToken) {
 		const commandName = createCommandName(createStringNode(token.value));
 
 		const nodes = new Array<Node>();
 		nodes.push(commandName);
 
-		while (this.lexer.hasNext() && !this.isNextEndOfStatement()) {
+		while (this.lexer.hasNext() && !this.isNextEndOfStatement() && !this.isOperatorToken()) {
 			this.preventCommandParsing = true;
 			nodes.push(this.parseNextExpression());
 			this.preventCommandParsing = false;
@@ -224,7 +229,7 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=" && isNode(left, CmdSyntaxKind.Identifier)) {
-					const right = this.parseNextExpression();
+					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
 					if (isAssignableExpression(right)) {
 						// isAssignment
 						return createVariableStatement(createVariableDeclaration(left, right));
