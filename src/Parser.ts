@@ -134,8 +134,8 @@ export default class ZrParser {
 				this.skip(ZrTokenKind.Special, ",");
 			}
 
+			this.preventCommandParsing = true;
 			nodes.push(this.parseNextExpression());
-
 			this.preventCommandParsing = false;
 			argumentIndex++;
 		}
