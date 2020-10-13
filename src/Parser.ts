@@ -150,9 +150,9 @@ export default class ZrParser {
 		let index = 0;
 
 		this.skip(ZrTokenKind.Special, start);
+		this.preventCommandParsing = true;
 
 		while (this.lexer.hasNext()) {
-			this.preventCommandParsing = true;
 			if (this.is(ZrTokenKind.Special, stop)) {
 				break;
 			}
@@ -164,10 +164,10 @@ export default class ZrParser {
 			prettyPrintNodes(values, "arrayExpression");
 			values.push(this.parseNextExpressionStatement());
 
-			this.preventCommandParsing = false;
 			index++;
 		}
 
+		this.preventCommandParsing = false;
 		this.skip(ZrTokenKind.Special, stop);
 
 		return createArrayLiteral(values);
