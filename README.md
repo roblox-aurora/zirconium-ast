@@ -75,3 +75,21 @@ The above would print `True!` three times.
 
 echo $x # x is out of scope, would be nil
 ```
+
+## Functions
+```ts
+// No arguments
+function functionName() {
+
+}
+
+// Implicit any
+function functionName($argument) {
+
+}
+
+// With multiple arguments and types
+function functionName($argument: string, $anotherArgument: number) {
+    echo $argument $anotherArgument
+}
+```
