@@ -10,14 +10,13 @@ import {
 	createCommandName,
 	createCommandSource,
 	createCommandStatement,
+	createFunctionDeclaration,
 	createIdentifier,
 	createIfStatement,
 	createInterpolatedString,
 	createNumberNode,
 	createOperator,
-	createOptionExpression,
 	createOptionKey,
-	createParenthesizedExpression,
 	createPropertyAccessExpression,
 	createStringNode,
 	createVariableDeclaration,
@@ -30,13 +29,12 @@ import {
 	ExpressionStatement,
 	Identifier,
 	Node,
-	NodeError,
+	Parameter,
 	PropertyAccessExpression,
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
 import { InterpolatedStringToken, isToken, StringToken, Token, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
-import { prettyPrintNodes } from "Utility";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"=": 1,
@@ -64,6 +62,9 @@ export const enum ZrParserErrorCode {
 	Unexpected = 1000,
 	UnexpectedWord = 1001,
 	InvalidVariableAssignment = 1002,
+	IdentifierExpected,
+	ExpectedToken,
+	NotImplemented,
 }
 
 export interface ParserError {
@@ -76,10 +77,9 @@ export interface ParserError {
 export default class ZrParser {
 	private preventCommandParsing = false;
 	private strict = false;
-	private isAssigning = false;
 	private errors = new Array<ParserError>();
 
-	public constructor(private lexer: ZrLexer, private options: ZrParserOptions) {}
+	public constructor(private lexer: ZrLexer) {}
 
 	private parserError(message: string, code: ZrParserErrorCode): never {
 		this.errors.push(
@@ -141,7 +141,42 @@ export default class ZrParser {
 			const block = this.parseSource("{", "}") as Statement[];
 			return createBlock(block);
 		} else {
-			this.parserError("Code block does not start with a '{'", ZrParserErrorCode.Unexpected);
+			this.parserError("Expected '{'", ZrParserErrorCode.ExpectedToken);
+		}
+	}
+
+	private parseParameters() {
+		const parameters = new Array<Parameter>();
+		if (this.is(ZrTokenKind.Special, "(")) {
+			this.skip(ZrTokenKind.Special, "(");
+			while (this.lexer.hasNext() && !this.is(ZrTokenKind.Special, ")")) {}
+			this.skip(ZrTokenKind.Special, ")");
+		} else {
+			this.parserError("'(' expected got '" + this.lexer.peek()?.value + "'", ZrParserErrorCode.ExpectedToken);
+		}
+		return parameters;
+	}
+
+	private parseFunction() {
+		this.skip(ZrTokenKind.Keyword, "func");
+		// throw `Functions not yet implemented`;
+
+		if (this.is(ZrTokenKind.String)) {
+			const id = this.get(ZrTokenKind.String)!;
+			this.lexer.next();
+			const idNode = createIdentifier(id.value);
+
+			const paramList = this.parseParameters();
+
+			if (this.is(ZrTokenKind.Special, "{")) {
+				const body = this.parseBlock();
+
+				return createFunctionDeclaration(idNode, paramList, body);
+			} else {
+				this.parserError("Function implementation is missing", ZrParserErrorCode.NotImplemented);
+			}
+		} else {
+			this.parserError("Identifier expected", ZrParserErrorCode.IdentifierExpected);
 		}
 	}
 
@@ -285,6 +320,10 @@ export default class ZrParser {
 			return expr;
 		}
 
+		if (this.is(ZrTokenKind.Keyword, "func")) {
+			return this.parseFunction();
+		}
+
 		if (this.is(ZrTokenKind.Special, "{")) {
 			return this.parseBlock();
 		}
@@ -300,7 +339,6 @@ export default class ZrParser {
 		// Handle literals
 		const token = this.lexer.next();
 		assert(token);
-		print(token.kind, token.value);
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
@@ -359,15 +397,12 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=" && isNode(left, ZrNodeKind.Identifier)) {
-					this.isAssigning = true;
 					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
 					if (isAssignableExpression(right)) {
 						// isAssignment
 						const statement = createVariableStatement(createVariableDeclaration(left, right));
-						this.isAssigning = false;
 						return statement;
 					} else {
-						this.isAssigning = false;
 						this.parserNodeError(
 							`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
 							ZrParserErrorCode.InvalidVariableAssignment,

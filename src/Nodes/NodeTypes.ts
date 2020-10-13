@@ -27,6 +27,8 @@ export interface NodeTypes {
 	[ZrNodeKind.ArrayLiteralExpression]: ArrayLiteral;
 	[ZrNodeKind.ArrayIndexExpression]: ArrayIndexExpression;
 	[ZrNodeKind.ParenthesizedExpression]: ParenthesizedExpression;
+	[ZrNodeKind.FunctionDeclaration]: FunctionDeclaration;
+	[ZrNodeKind.Parameter]: Parameter;
 }
 
 export interface NodeBase {
@@ -48,6 +50,18 @@ export interface OperatorToken extends NodeBase {
 export interface ParenthesizedExpression extends NodeBase {
 	kind: ZrNodeKind.ParenthesizedExpression;
 	expression: ExpressionStatement;
+}
+
+export interface Parameter extends NodeBase {
+	kind: ZrNodeKind.Parameter;
+	name: Identifier;
+}
+
+export interface FunctionDeclaration extends NodeBase {
+	kind: ZrNodeKind.FunctionDeclaration;
+	name: Identifier;
+	parameters: Parameter[]; // TODO:
+	body: SourceBlock;
 }
 
 export interface CommandSource extends NodeBase {
@@ -136,7 +150,8 @@ export type ExpressionStatement =
 	| ArrayIndexExpression
 	| OptionExpression
 	| Option
-	| ParenthesizedExpression;
+	| ParenthesizedExpression
+	| FunctionDeclaration;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {

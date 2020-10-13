@@ -28,6 +28,7 @@ import {
 	SourceBlock,
 	Statement,
 	ParenthesizedExpression,
+	FunctionDeclaration,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -112,6 +113,20 @@ export function createBlock(statements: Statement[]) {
 	return identity<SourceBlock>({
 		kind: ZrNodeKind.Block,
 		statements,
+		flags: 0,
+	});
+}
+
+export function createFunctionDeclaration(
+	name: FunctionDeclaration["name"],
+	parameters: FunctionDeclaration["parameters"],
+	body: FunctionDeclaration["body"],
+) {
+	return identity<FunctionDeclaration>({
+		kind: ZrNodeKind.FunctionDeclaration,
+		name,
+		body,
+		parameters,
 		flags: 0,
 	});
 }

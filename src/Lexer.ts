@@ -130,7 +130,6 @@ export default class ZrLexer {
 	 */
 	private readComment() {
 		const result = this.readWhile(this.isNotNewline);
-		print(result);
 		this.stream.next(); // nom the newline
 		return result;
 	}

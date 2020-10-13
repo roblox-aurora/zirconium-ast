@@ -47,6 +47,10 @@ export enum ZrNodeKind {
 	ForInStatement,
 
 	ParenthesizedExpression,
+
+	FunctionDeclaration,
+
+	Parameter,
 }
 export const CmdSyntaxKind = ZrNodeKind;
 
