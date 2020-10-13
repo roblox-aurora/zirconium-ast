@@ -157,7 +157,11 @@ export default class ZrParser {
 
 		const node = createIfStatement(expr, undefined, undefined);
 
-		if (this.is(ZrTokenKind.Special, "{")) {
+		if (this.is(ZrTokenKind.Special, ":")) {
+			this.skip(ZrTokenKind.Special, ":");
+			node.thenStatement = createBlock([this.mutateExpressionStatement(this.parseNextExpression()) as Statement]);
+			return node;
+		} else if (this.is(ZrTokenKind.Special, "{")) {
 			node.thenStatement = this.parseBlock();
 		}
 

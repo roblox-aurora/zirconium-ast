@@ -36,7 +36,7 @@ export interface LexerOptions {
 export default class ZrLexer {
 	private static readonly OPERATORS = ["&", "|", "=", ">", "<", "-"];
 	private static readonly ENDOFSTATEMENT = [";", "\n"];
-	private static readonly SPECIAL = ["(", ")", ",", "{", "}", "[", "]", "."];
+	private static readonly SPECIAL = ["(", ")", ",", "{", "}", "[", "]", ".", ":"];
 	private static readonly BOOLEAN = ["true", "false"];
 
 	public constructor(private stream: ZrTextStream, private options: LexerOptions) {}
