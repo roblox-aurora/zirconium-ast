@@ -131,6 +131,7 @@ export type ExpressionStatement =
 	| CommandStatement
 	| VariableStatement
 	| ArrayLiteral
+	| SourceBlock
 	| PropertyAccessExpression
 	| ArrayIndexExpression
 	| OptionExpression

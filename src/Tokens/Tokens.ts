@@ -14,7 +14,7 @@ export const enum ZrTokenKind {
 	EndOfStatement = "EndOfStatement",
 }
 
-export const KEYWORDS = ["if", "else"];
+export const KEYWORDS = ["if", "else", "for", "in"];
 
 export interface TokenTypes {
 	[ZrTokenKind.Identifier]: IdentifierToken;

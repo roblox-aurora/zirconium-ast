@@ -23,6 +23,7 @@ import {
 	createVariableDeclaration,
 	createVariableStatement,
 } from "Nodes/Create";
+import { getFriendlyName } from "Nodes/Functions";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
@@ -34,7 +35,7 @@ import {
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
-import { InterpolatedStringToken, isToken, StringToken, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
+import { InterpolatedStringToken, isToken, StringToken, Token, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
 import { prettyPrintNodes } from "Utility";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
@@ -59,10 +60,47 @@ interface ZrParserOptions {
 	commands: AstCommandDefinitions;
 }
 
+export const enum ZrParserErrorCode {
+	Unexpected = 1000,
+	UnexpectedWord = 1001,
+	InvalidVariableAssignment = 1002,
+}
+
+export interface ParserError {
+	message: string;
+	code: ZrParserErrorCode;
+	node?: Node;
+	token?: Token;
+}
+
 export default class ZrParser {
 	private preventCommandParsing = false;
 	private strict = false;
-	public constructor(private lexer: ZrLexer) {}
+	private isAssigning = false;
+	private errors = new Array<ParserError>();
+
+	public constructor(private lexer: ZrLexer, private options: ZrParserOptions) {}
+
+	private parserError(message: string, code: ZrParserErrorCode): never {
+		this.errors.push(
+			identity<ParserError>({
+				message,
+				code,
+			}),
+		);
+		this.throwParserError(message);
+	}
+
+	private parserNodeError(message: string, code: ZrParserErrorCode, node?: Node): never {
+		this.errors.push(
+			identity<ParserError>({
+				message,
+				code,
+				node,
+			}),
+		);
+		this.throwParserError(message);
+	}
 
 	private throwParserError(message: string): never {
 		throw `[ZParser] Parsing Error: ${message}`;
@@ -94,7 +132,7 @@ export default class ZrParser {
 		if (this.is(kind, value)) {
 			this.lexer.next();
 		} else {
-			throw `Invalid ${this.lexer.peek()?.kind} '${this.lexer.peek()?.value}', expected ${kind} '${value}'`;
+			this.parserError("Unexpected '" + kind + "'", ZrParserErrorCode.Unexpected);
 		}
 	}
 
@@ -103,7 +141,7 @@ export default class ZrParser {
 			const block = this.parseSource("{", "}") as Statement[];
 			return createBlock(block);
 		} else {
-			throw `Can't parse block :(`;
+			this.parserError("Code block does not start with a '{'", ZrParserErrorCode.Unexpected);
 		}
 	}
 
@@ -221,7 +259,6 @@ export default class ZrParser {
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
-			prettyPrintNodes(values, "arrayExpression");
 			values.push(this.parseNextExpressionStatement());
 
 			index++;
@@ -236,7 +273,18 @@ export default class ZrParser {
 	/**
 	 * Parses the next expression statement
 	 */
-	private parseNextExpressionStatement() {
+	private parseNextExpressionStatement(): ExpressionStatement {
+		if (this.is(ZrTokenKind.Special, "(")) {
+			this.lexer.next();
+			const expr = this.parseNextExpression();
+			this.skip(ZrTokenKind.Special, ")");
+			return expr;
+		}
+
+		if (this.is(ZrTokenKind.Special, "{")) {
+			return this.parseBlock();
+		}
+
 		if (this.is(ZrTokenKind.Keyword, "if")) {
 			return this.parseIfStatement();
 		}
@@ -244,11 +292,6 @@ export default class ZrParser {
 		if (this.is(ZrTokenKind.Special, "[")) {
 			return this.parseArrayExpression();
 		}
-
-		// if (this.is(ZrTokenKind.Special, "(")) {
-		// 	const nodes = this.parseSource("(", ")");
-		// 	return createParenthesizedExpression(nodes[0] as ExpressionStatement);
-		// }
 
 		// Handle literals
 		const token = this.lexer.next();
@@ -258,7 +301,7 @@ export default class ZrParser {
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
 				if (this.strict && token.quotes === undefined) {
-					this.throwParserError("Cannot have non-quoted string in strict mode!");
+					this.parserError("Unexpected '" + token.value + "'", ZrParserErrorCode.UnexpectedWord);
 				}
 
 				return createStringNode(token.value, token.quotes);
@@ -293,10 +336,9 @@ export default class ZrParser {
 			return createOptionKey(token.value);
 		}
 
-		this.throwParserError(
-			`Unable to generate ExpressionStatement from tokenKind {kind: ${token.kind}, value: ${token.value}} (${
-				token.value.byte()[0]
-			}) [${token.startPos}:${token.endPos}]`,
+		this.parserError(
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
+			ZrParserErrorCode.Unexpected,
 		);
 	}
 
@@ -313,12 +355,20 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=" && isNode(left, ZrNodeKind.Identifier)) {
+					this.isAssigning = true;
 					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
 					if (isAssignableExpression(right)) {
 						// isAssignment
-						return createVariableStatement(createVariableDeclaration(left, right));
+						const statement = createVariableStatement(createVariableDeclaration(left, right));
+						this.isAssigning = false;
+						return statement;
 					} else {
-						this.throwParserError(`Cannot assign ${right.kind} to VariableStatement`);
+						this.isAssigning = false;
+						this.parserNodeError(
+							`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
+							ZrParserErrorCode.InvalidVariableAssignment,
+							right,
+						);
 					}
 				} else {
 					return createBinaryExpression(
@@ -348,14 +398,12 @@ export default class ZrParser {
 		if (this.isNextEndOfStatement()) {
 			this.lexer.next();
 		} else {
-			const token = this.lexer.peek();
-			throw `Expected end of statement (newline or ';'), got ${token?.kind}`;
+			this.parserError("Expected end of statement", ZrParserErrorCode.Unexpected);
 		}
 	}
 
 	private skipAllWhitespace() {
 		while (this.lexer.hasNext() && this.isNextEndOfStatement()) {
-			print("skip", this.lexer.peek()?.kind ?? "none");
 			this.skipNextEndOfStatement();
 		}
 	}
@@ -399,5 +447,13 @@ export default class ZrParser {
 	public parse() {
 		// this.lexer.reset();
 		return createCommandSource(this.parseSource());
+	}
+
+	public getErrors(): readonly ParserError[] {
+		return this.errors;
+	}
+
+	public hasErrors() {
+		return this.errors.size() > 0;
 	}
 }
