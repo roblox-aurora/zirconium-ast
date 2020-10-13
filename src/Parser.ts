@@ -15,6 +15,9 @@ import {
 	createInterpolatedString,
 	createNumberNode,
 	createOperator,
+	createOptionExpression,
+	createOptionKey,
+	createParenthesizedExpression,
 	createPropertyAccessExpression,
 	createStringNode,
 	createVariableDeclaration,
@@ -106,7 +109,15 @@ export default class ZrParser {
 
 	private parseIfStatement() {
 		this.skip(ZrTokenKind.Keyword, "if");
-		const node = createIfStatement(this.parseNextExpression(), undefined, undefined);
+
+		let expr: ExpressionStatement;
+		if (this.is(ZrTokenKind.Special, "(")) {
+			expr = this.parseSource("(", ")")[0] as ExpressionStatement;
+		} else {
+			expr = this.mutateExpressionStatement(this.parseNextExpression());
+		}
+
+		const node = createIfStatement(expr, undefined, undefined);
 
 		if (this.is(ZrTokenKind.Special, "{")) {
 			node.thenStatement = this.parseBlock();
@@ -129,6 +140,10 @@ export default class ZrParser {
 		return this.is(ZrTokenKind.Operator);
 	}
 
+	private isBracketToken() {
+		return this.is(ZrTokenKind.Special, ")") || this.is(ZrTokenKind.Special, "{");
+	}
+
 	private parseCommandStatement(token: StringToken, isStrictFunctionCall = this.strict) {
 		const commandName = createCommandName(createStringNode(token.value));
 
@@ -143,7 +158,12 @@ export default class ZrParser {
 		}
 
 		let argumentIndex = 0;
-		while (this.lexer.hasNext() && !this.isNextEndOfStatement() && !this.isOperatorToken()) {
+		while (
+			this.lexer.hasNext() &&
+			!this.isNextEndOfStatement() &&
+			!this.isOperatorToken() &&
+			!this.isBracketToken()
+		) {
 			if (isStrictFunctionCall && this.is(ZrTokenKind.Special, ")")) {
 				break;
 			}
@@ -225,6 +245,11 @@ export default class ZrParser {
 			return this.parseArrayExpression();
 		}
 
+		// if (this.is(ZrTokenKind.Special, "(")) {
+		// 	const nodes = this.parseSource("(", ")");
+		// 	return createParenthesizedExpression(nodes[0] as ExpressionStatement);
+		// }
+
 		// Handle literals
 		const token = this.lexer.next();
 		assert(token);
@@ -264,12 +289,14 @@ export default class ZrParser {
 			return this.parseInterpolatedString(token);
 		} else if (isToken(token, ZrTokenKind.EndOfStatement)) {
 			this.throwParserError(`Invalid EndOfStatement: '${token.value}' [${token.startPos}:${token.endPos}]`);
+		} else if (isToken(token, ZrTokenKind.Option)) {
+			return createOptionKey(token.value);
 		}
 
 		this.throwParserError(
 			`Unable to generate ExpressionStatement from tokenKind {kind: ${token.kind}, value: ${token.value}} (${
 				token.value.byte()[0]
-			})`,
+			}) [${token.startPos}:${token.endPos}]`,
 		);
 	}
 
@@ -359,6 +386,8 @@ export default class ZrParser {
 
 			this.skipAllWhitespace();
 		}
+
+		this.skipAllWhitespace();
 
 		if (stop) {
 			this.skip(ZrTokenKind.Special, stop);

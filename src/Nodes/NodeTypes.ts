@@ -26,6 +26,7 @@ export interface NodeTypes {
 	[ZrNodeKind.InnerExpression]: InnerExpression;
 	[ZrNodeKind.ArrayLiteralExpression]: ArrayLiteral;
 	[ZrNodeKind.ArrayIndexExpression]: ArrayIndexExpression;
+	[ZrNodeKind.ParenthesizedExpression]: ParenthesizedExpression;
 }
 
 export interface NodeBase {
@@ -42,6 +43,11 @@ type OP = "&&" | "|" | "=";
 export interface OperatorToken extends NodeBase {
 	operator: string;
 	kind: ZrNodeKind.OperatorToken;
+}
+
+export interface ParenthesizedExpression extends NodeBase {
+	kind: ZrNodeKind.ParenthesizedExpression;
+	expression: ExpressionStatement;
 }
 
 export interface CommandSource extends NodeBase {
@@ -126,7 +132,10 @@ export type ExpressionStatement =
 	| VariableStatement
 	| ArrayLiteral
 	| PropertyAccessExpression
-	| ArrayIndexExpression;
+	| ArrayIndexExpression
+	| OptionExpression
+	| Option
+	| ParenthesizedExpression;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {
@@ -170,7 +179,7 @@ export interface Option extends NodeBase {
 
 export interface OptionExpression extends NodeBase {
 	option: Option;
-	expression: Identifier | StringLiteral | InterpolatedStringExpression | BooleanLiteral | NumberLiteral;
+	expression: AssignableExpression;
 }
 
 export const VALID_PREFIX_CHARS = ["~", "@", "%", "^", "*", "!"] as const;

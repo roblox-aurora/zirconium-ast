@@ -45,6 +45,8 @@ export enum ZrNodeKind {
 
 	/** @todo `for (<var> in <expression>)` */
 	ForInStatement,
+
+	ParenthesizedExpression,
 }
 export const CmdSyntaxKind = ZrNodeKind;
 

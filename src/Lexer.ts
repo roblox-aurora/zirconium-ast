@@ -9,6 +9,7 @@ import {
 	KeywordToken,
 	NumberToken,
 	OperatorToken,
+	OptionToken,
 	PropertyAccessToken,
 	SpecialToken,
 	StringToken,
@@ -22,6 +23,7 @@ const enum TokenCharacter {
 	DoubleQuote = '"',
 	SingleQuote = "'",
 	Dot = ".",
+	Dash = "-",
 }
 
 export interface LexerOptions {
@@ -46,6 +48,7 @@ export default class ZrLexer {
 	private isKeyword = (c: string) => (KEYWORDS as readonly string[]).includes(c);
 	private isWhitespace = (c: string) => c.match("%s")[0] !== undefined && c !== "\n";
 	private isId = (c: string) => c.match("[%w_]")[0] !== undefined;
+	private isOptionId = (c: string) => c.match("[%w_-]")[0] !== undefined;
 
 	/**
 	 * Resets the stream pointer to the beginning
@@ -255,6 +258,19 @@ export default class ZrLexer {
 		}
 	}
 
+	private readOption(prefix: string) {
+		const startPos = this.stream.getPtr() + 1;
+		const optionName = this.readWhile(this.isOptionId);
+		const endPos = this.stream.getPtr();
+		return identity<OptionToken>({
+			kind: ZrTokenKind.Option,
+			value: optionName,
+			startPos,
+			endPos,
+			prefix,
+		});
+	}
+
 	/**
 	 * Gets the next token
 	 */
@@ -286,6 +302,15 @@ export default class ZrLexer {
 		// Handle double quote and single quote strings
 		if (char === TokenCharacter.DoubleQuote || char === TokenCharacter.SingleQuote) {
 			return this.readStringToken(char);
+		}
+
+		if (char === TokenCharacter.Dash) {
+			const nextChar = this.stream.peek(1);
+			if (nextChar === TokenCharacter.Dash) {
+				// if dash dash prefix (aka 'option')
+				this.stream.next(2); // strip both dashes
+				return this.readOption("--");
+			}
 		}
 
 		if (this.isNumeric(char)) {

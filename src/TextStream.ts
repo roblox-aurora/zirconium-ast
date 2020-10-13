@@ -8,17 +8,17 @@ export default class ZrTextStream {
 	/**
 	 * Consume and return the next character in the stream
 	 */
-	public next() {
+	public next(offset = 1) {
 		const char = this.source.sub(this.ptr, this.ptr);
-		this.ptr++;
+		this.ptr += offset;
 		return char;
 	}
 
 	/**
 	 * Returns the next character in the stream without consuming it
 	 */
-	public peek() {
-		const char = this.source.sub(this.ptr, this.ptr);
+	public peek(offset = 0) {
+		const char = this.source.sub(this.ptr + offset, this.ptr + offset);
 		return char;
 	}
 

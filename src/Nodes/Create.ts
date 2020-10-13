@@ -27,6 +27,7 @@ import {
 	ArrayIndexExpression,
 	SourceBlock,
 	Statement,
+	ParenthesizedExpression,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -111,6 +112,14 @@ export function createBlock(statements: Statement[]) {
 	return identity<SourceBlock>({
 		kind: ZrNodeKind.Block,
 		statements,
+		flags: 0,
+	});
+}
+
+export function createParenthesizedExpression(expression: ParenthesizedExpression["expression"]) {
+	return identity<ParenthesizedExpression>({
+		kind: ZrNodeKind.ParenthesizedExpression,
+		expression,
 		flags: 0,
 	});
 }

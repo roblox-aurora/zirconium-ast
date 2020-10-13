@@ -6,6 +6,7 @@ export const enum ZrTokenKind {
 	Number = "Number",
 	Boolean = "Boolean",
 	Operator = "Operator",
+	Option = "Option",
 	Special = "Special",
 	Keyword = "Keyword",
 	PropertyAccess = "Property",
@@ -27,12 +28,19 @@ export interface TokenTypes {
 	[ZrTokenKind.EndOfStatement]: EndOfStatementToken;
 	[ZrTokenKind.ArrayIndex]: ArrayIndexToken;
 	[ZrTokenKind.PropertyAccess]: PropertyAccessToken;
+	[ZrTokenKind.Option]: OptionToken;
 }
 
 export interface TokenBase {
 	kind: ZrTokenKind;
 	startPos: number;
 	endPos: number;
+}
+
+export interface OptionToken extends TokenBase {
+	kind: ZrTokenKind.Option;
+	value: string;
+	prefix?: string;
 }
 
 export interface IdentifierToken extends TokenBase {
