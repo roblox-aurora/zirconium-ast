@@ -231,6 +231,7 @@ export default class ZrParser {
 		}
 
 		if (isToken(token, ZrTokenKind.Identifier)) {
+			assert(token.value);
 			return createIdentifier(token.value);
 		} else if (isToken(token, ZrTokenKind.PropertyAccess)) {
 			let expr: Identifier | PropertyAccessExpression | ArrayIndexExpression = createIdentifier(token.value);

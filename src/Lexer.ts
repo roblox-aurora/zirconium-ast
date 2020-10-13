@@ -221,7 +221,7 @@ export default class ZrLexer {
 		} else {
 			return identity<IdentifierToken>({
 				kind: ZrTokenKind.Identifier,
-				value: properties[0],
+				value: id,
 			});
 		}
 
