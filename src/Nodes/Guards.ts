@@ -54,12 +54,7 @@ export function isValidPrefixCharacter(input: string): input is typeof VALID_PRE
 export const VALID_VARIABLE_NAME = "^[A-Za-z_][A-Za-z0-9_]*$"; // matches $A, $a, $a0, $_a, $A_, $A_a, etc.
 export const VALID_COMMAND_NAME = "^[A-Za-z][A-Z0-9a-z_%-]*$";
 
-const PREFIXABLE = [
-	ZrNodeKind.String,
-	ZrNodeKind.InterpolatedString,
-	ZrNodeKind.Number,
-	ZrNodeKind.Boolean,
-] as const;
+const PREFIXABLE = [ZrNodeKind.String, ZrNodeKind.InterpolatedString, ZrNodeKind.Number, ZrNodeKind.Boolean] as const;
 
 /**
  * Can this expression be prefixed?
@@ -76,6 +71,8 @@ export const ASSIGNABLE = [
 	ZrNodeKind.Boolean,
 	ZrNodeKind.InnerExpression,
 	ZrNodeKind.ArrayLiteralExpression,
+	ZrNodeKind.PropertyAccessExpression,
+	ZrNodeKind.ArrayIndexExpression,
 ] as const;
 
 /**
