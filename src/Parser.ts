@@ -207,7 +207,7 @@ export default class ZrParser {
 	}
 
 	private parseFunction() {
-		this.skip(ZrTokenKind.Keyword, "func");
+		this.skip(ZrTokenKind.Keyword, "function");
 		// throw `Functions not yet implemented`;
 
 		if (this.is(ZrTokenKind.String)) {
@@ -369,7 +369,7 @@ export default class ZrParser {
 			return expr;
 		}
 
-		if (this.is(ZrTokenKind.Keyword, "func")) {
+		if (this.is(ZrTokenKind.Keyword, "function")) {
 			return this.parseFunction();
 		}
 

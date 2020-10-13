@@ -1,4 +1,4 @@
-import { ZrNodeKind, NodeFlag } from "./Enum";
+import { ZrNodeKind, NodeFlag, ZrTypeKeyword } from "./Enum";
 import {
 	InterpolatedStringExpression,
 	StringLiteral,
@@ -127,7 +127,7 @@ export function createTypeReference(typeName: TypeReference["typeName"]) {
 	});
 }
 
-export function createKeywordTypeNode(keyword: "any") {
+export function createKeywordTypeNode(keyword: ZrTypeKeyword) {
 	return createTypeReference(createIdentifier(keyword));
 }
 
