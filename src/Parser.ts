@@ -122,6 +122,7 @@ export default class ZrParser {
 		if (this.is(ZrTokenKind.Special, "(") || isStrictFunctionCall) {
 			this.skip(ZrTokenKind.Special, "(");
 			isStrictFunctionCall = true;
+			this.strict = true;
 		}
 
 		let argumentIndex = 0;
@@ -142,6 +143,7 @@ export default class ZrParser {
 
 		if (isStrictFunctionCall) {
 			this.skip(ZrTokenKind.Special, ")");
+			this.strict = false;
 		}
 
 		return createCommandStatement(commandName, nodes);
@@ -178,7 +180,7 @@ export default class ZrParser {
 				break;
 			}
 
-			if (index > 0 && this.is(ZrTokenKind.Special, separator)) {
+			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || this.strict)) {
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
