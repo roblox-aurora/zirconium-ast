@@ -55,10 +55,23 @@ if $value {
     echo "True!"
 }
 
+if $value: echo "True!" # Short form if, same as above
+
 if $value {
     echo "True!"
 } else {
     echo "False!"
 }
 ```
-The above would print `True!` twice.
+The above would print `True!` three times.
+
+
+## Block Scope
+```bash
+{
+    $x = 10
+    echo $x # x is 10
+}
+
+echo $x # x is out of scope, would be nil
+```
