@@ -31,6 +31,8 @@ export interface TokenTypes {
 
 export interface TokenBase {
 	kind: ZrTokenKind;
+	startPos: number;
+	endPos: number;
 }
 
 export interface IdentifierToken extends TokenBase {

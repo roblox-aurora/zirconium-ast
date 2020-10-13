@@ -35,4 +35,11 @@ export default class ZrTextStream {
 	public hasNext() {
 		return this.source.size() > this.ptr;
 	}
+
+	/**
+	 * Get the current pointer location
+	 */
+	public getPtr() {
+		return this.ptr;
+	}
 }
