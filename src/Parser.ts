@@ -36,6 +36,7 @@ import {
 	Node,
 	Parameter,
 	PropertyAccessExpression,
+	SourceBlock,
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
@@ -159,6 +160,28 @@ export default class ZrParser {
 		}
 	}
 
+	/**
+	 * Parses an inline statement (e.g. `if $true: <expression>`)
+	 *
+	 * Short-hand and only takes one expression. For multiple use `parseBlock`.
+	 */
+	private parseInlineStatement() {
+		if (this.is(ZrTokenKind.Special, ":")) {
+			this.skip(ZrTokenKind.Special, ":");
+			return createBlock([this.mutateExpressionStatement(this.parseNextExpression()) as Statement]);
+		} else {
+			this.parserError("Expected ':' got  " + this.lexer.peek()?.kind, ZrParserErrorCode.ExpectedToken);
+		}
+	}
+
+	private parseBlockOrInlineStatement() {
+		if (this.is(ZrTokenKind.Special, ":")) {
+			return this.parseInlineStatement();
+		} else {
+			return this.parseBlock();
+		}
+	}
+
 	private parseParameters() {
 		const parameters = new Array<Parameter>();
 		if (this.is(ZrTokenKind.Special, "(")) {
@@ -210,7 +233,7 @@ export default class ZrParser {
 
 	private parseFor() {
 		this.skip(ZrTokenKind.Keyword, "for");
-		if (this.is(ZrTokenKind.Identifier)) {
+		if (this.lexer.isNextKind(ZrTokenKind.Identifier)) {
 			const id = this.lexer.next() as IdentifierToken;
 
 			if (this.is(ZrTokenKind.Keyword, "in")) {
@@ -218,15 +241,20 @@ export default class ZrParser {
 				const targetId = this.get(ZrTokenKind.Identifier);
 				if (targetId !== undefined) {
 					this.lexer.next();
+
 					return createForInStatement(
 						createIdentifier(id.value),
 						createIdentifier(targetId.value),
-						this.parseBlock(),
+						this.parseBlockOrInlineStatement(),
 					);
-				} else if (!this.is(ZrTokenKind.EndOfStatement)) {
+				} else if (!this.lexer.isNextKind(ZrTokenKind.EndOfStatement)) {
 					const expression = this.mutateExpressionStatement(this.parseNextExpression());
 					if (isNode(expression, ZrNodeKind.CommandStatement)) {
-						return createForInStatement(createIdentifier(id.value), expression, this.parseBlock());
+						return createForInStatement(
+							createIdentifier(id.value),
+							expression,
+							this.parseBlockOrInlineStatement(),
+						);
 					} else {
 						this.parserError(
 							"ForIn statement expects identifier or command statement",
@@ -249,11 +277,9 @@ export default class ZrParser {
 
 	private parseFunction() {
 		this.skip(ZrTokenKind.Keyword, "function");
-		// throw `Functions not yet implemented`;
 
-		if (this.is(ZrTokenKind.String)) {
-			const id = this.get(ZrTokenKind.String)!;
-			this.lexer.next();
+		if (this.lexer.isNextKind(ZrTokenKind.String)) {
+			const id = this.lexer.next() as StringToken;
 			const idNode = createIdentifier(id.value);
 
 			const paramList = this.parseParameters();
@@ -283,8 +309,7 @@ export default class ZrParser {
 		const node = createIfStatement(expr, undefined, undefined);
 
 		if (this.is(ZrTokenKind.Special, ":")) {
-			this.skip(ZrTokenKind.Special, ":");
-			node.thenStatement = createBlock([this.mutateExpressionStatement(this.parseNextExpression()) as Statement]);
+			node.thenStatement = this.parseInlineStatement();
 			return node;
 		} else if (this.is(ZrTokenKind.Special, "{")) {
 			node.thenStatement = this.parseBlock();
@@ -304,11 +329,13 @@ export default class ZrParser {
 	}
 
 	private isOperatorToken() {
-		return this.is(ZrTokenKind.Operator);
+		return this.lexer.isNextKind(ZrTokenKind.Operator);
 	}
 
-	private isBracketToken() {
-		return this.is(ZrTokenKind.Special, ")") || this.is(ZrTokenKind.Special, "{");
+	private isEndBracketOrBlockToken() {
+		return (
+			this.is(ZrTokenKind.Special, ")") || this.is(ZrTokenKind.Special, "{") || this.is(ZrTokenKind.Special, ":")
+		);
 	}
 
 	private parseCommandStatement(token: StringToken, isStrictFunctionCall = this.strict) {
@@ -329,7 +356,7 @@ export default class ZrParser {
 			this.lexer.hasNext() &&
 			!this.isNextEndOfStatement() &&
 			!this.isOperatorToken() &&
-			!this.isBracketToken()
+			!this.isEndBracketOrBlockToken()
 		) {
 			if (isStrictFunctionCall && this.is(ZrTokenKind.Special, ")")) {
 				break;

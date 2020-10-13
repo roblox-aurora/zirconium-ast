@@ -346,6 +346,10 @@ export default class ZrLexer {
 		return this.readLiteralString();
 	}
 
+	public isNextKind(kind: ZrTokenKind) {
+		return this.peek()?.kind === kind;
+	}
+
 	private currentToken: Token | undefined;
 	public peek() {
 		this.currentToken = this.currentToken ?? this.readNext();
