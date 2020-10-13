@@ -4,6 +4,7 @@ import { CmdSyntaxKind, isNode } from "Nodes";
 import {
 	createArrayLiteral,
 	createBinaryExpression,
+	createBooleanNode,
 	createCommandName,
 	createCommandSource,
 	createCommandStatement,
@@ -53,7 +54,7 @@ interface ZrParserOptions {
 
 export default class ZrParser {
 	private errors = new Array<NodeError>();
-	private isParsingCommand = false;
+	private preventCommandParsing = false;
 	public constructor(private lexer: ZrLexer, private options: ZrParserOptions) {}
 
 	private peekLexer() {
@@ -112,9 +113,9 @@ export default class ZrParser {
 		nodes.push(commandName);
 
 		while (this.lexer.hasNext() && !this.isNextEndOfStatement()) {
-			this.isParsingCommand = true;
+			this.preventCommandParsing = true;
 			nodes.push(this.parseNextExpression());
-			this.isParsingCommand = false;
+			this.preventCommandParsing = false;
 		}
 
 		return createCommandStatement(commandName, nodes);
@@ -146,19 +147,19 @@ export default class ZrParser {
 		this.skip(ZrTokenKind.Special, start);
 
 		while (this.lexer.hasNext()) {
-			this.isParsingCommand = true;
+			this.preventCommandParsing = true;
 			if (this.is(ZrTokenKind.Special, stop)) {
 				break;
 			}
 
-			if (index > 0) {
+			if (index > 0 && this.is(ZrTokenKind.Special, separator)) {
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
 			prettyPrintNodes(values, "arrayExpression");
 			values.push(this.parseNextExpressionStatement());
 
-			this.isParsingCommand = false;
+			this.preventCommandParsing = false;
 			index++;
 		}
 
@@ -182,10 +183,10 @@ export default class ZrParser {
 		// Handle literals
 		const token = this.lexer.next();
 		assert(token);
-		print(token.kind, token.value)
+		print(token.kind, token.value);
 
 		if (isToken(token, ZrTokenKind.String)) {
-			if (this.isParsingCommand || token.quotes !== undefined) {
+			if (this.preventCommandParsing || token.quotes !== undefined) {
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
@@ -197,6 +198,8 @@ export default class ZrParser {
 			return createIdentifier(token.value);
 		} else if (isToken(token, ZrTokenKind.Number)) {
 			return createNumberNode(token.value);
+		} else if (isToken(token, ZrTokenKind.Boolean)) {
+			return createBooleanNode(token.value);
 		} else if (isToken(token, ZrTokenKind.InterpolatedString)) {
 			return this.parseInterpolatedString(token);
 		}

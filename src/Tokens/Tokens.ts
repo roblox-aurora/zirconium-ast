@@ -19,6 +19,7 @@ export interface TokenTypes {
 	[ZrTokenKind.Number]: NumberToken;
 	[ZrTokenKind.Operator]: OperatorToken;
 	[ZrTokenKind.Special]: SpecialToken;
+	[ZrTokenKind.Boolean]: BooleanToken;
 	[ZrTokenKind.Keyword]: KeywordToken;
 	[ZrTokenKind.InterpolatedString]: InterpolatedStringToken;
 	[ZrTokenKind.EndOfStatement]: EndOfStatementToken;
@@ -31,6 +32,12 @@ export interface TokenBase {
 export interface IdentifierToken extends TokenBase {
 	kind: ZrTokenKind.Identifier;
 	value: string;
+}
+
+export interface BooleanToken extends TokenBase {
+	kind: ZrTokenKind.Boolean;
+	value: boolean;
+	rawText: string;
 }
 
 export interface SpecialToken extends TokenBase {

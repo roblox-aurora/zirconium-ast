@@ -1,5 +1,6 @@
 import ZrTextStream from "TextStream";
 import {
+	BooleanToken,
 	EndOfStatementToken,
 	IdentifierToken,
 	InterpolatedStringToken,
@@ -29,6 +30,7 @@ export default class ZrLexer {
 	private static readonly OPERATORS = ["&", "|", "=", ">", "<", "-"];
 	private static readonly ENDOFSTATEMENT = [";", "\n"];
 	private static readonly SPECIAL = ["(", ")", ",", "{", "}", "[", "]"];
+	private static readonly BOOLEAN = ["true", "false"];
 
 	public constructor(private stream: ZrTextStream) {}
 
@@ -145,6 +147,14 @@ export default class ZrLexer {
 		}
 	}
 
+	private parseBoolean(value: string) {
+		if (value === "true") {
+			return true;
+		}
+
+		return false;
+	}
+
 	private readLiteralString() {
 		const literal = this.readWhile(
 			(c) =>
@@ -160,6 +170,14 @@ export default class ZrLexer {
 			return identity<KeywordToken>({
 				kind: ZrTokenKind.Keyword,
 				value: literal,
+			});
+		}
+
+		if (ZrLexer.BOOLEAN.includes(literal)) {
+			return identity<BooleanToken>({
+				kind: ZrTokenKind.Boolean,
+				value: this.parseBoolean(literal),
+				rawText: literal,
 			});
 		}
 
