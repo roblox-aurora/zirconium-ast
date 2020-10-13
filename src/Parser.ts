@@ -78,6 +78,7 @@ export const enum ZrParserErrorCode {
 	IdentifierExpected,
 	ExpectedToken,
 	NotImplemented,
+	ExpressionExpected,
 }
 
 export interface ParserError {
@@ -222,21 +223,27 @@ export default class ZrParser {
 						createIdentifier(targetId.value),
 						this.parseBlock(),
 					);
-				} else {
+				} else if (!this.is(ZrTokenKind.EndOfStatement)) {
 					const expression = this.mutateExpressionStatement(this.parseNextExpression());
 					if (isNode(expression, ZrNodeKind.CommandStatement)) {
 						return createForInStatement(createIdentifier(id.value), expression, this.parseBlock());
 					} else {
-						this.parserError("Identifier expected", ZrParserErrorCode.IdentifierExpected);
+						this.parserError(
+							"ForIn statement expects identifier or command statement",
+							ZrParserErrorCode.IdentifierExpected,
+						);
 					}
-
-					
+				} else {
+					this.parserError(
+						"ForIn statement expects expression after 'in'",
+						ZrParserErrorCode.ExpressionExpected,
+					);
 				}
 			} else {
-				this.parserError("'in' expected", ZrParserErrorCode.ExpectedToken);
+				this.parserError("'in' expected after identifier", ZrParserErrorCode.ExpectedToken);
 			}
 		} else {
-			this.parserError("Identifier expected", ZrParserErrorCode.IdentifierExpected);
+			this.parserError("Identifier expected after 'for'", ZrParserErrorCode.IdentifierExpected);
 		}
 	}
 
