@@ -29,6 +29,8 @@ import {
 	Statement,
 	ParenthesizedExpression,
 	FunctionDeclaration,
+	Parameter,
+	TypeReference,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -113,6 +115,27 @@ export function createBlock(statements: Statement[]) {
 	return identity<SourceBlock>({
 		kind: ZrNodeKind.Block,
 		statements,
+		flags: 0,
+	});
+}
+
+export function createTypeReference(typeName: TypeReference["typeName"]) {
+	return identity<TypeReference>({
+		kind: ZrNodeKind.TypeReference,
+		typeName,
+		flags: 0,
+	});
+}
+
+export function createKeywordTypeNode(keyword: "any") {
+	return createTypeReference(createIdentifier(keyword));
+}
+
+export function createParameter(name: Parameter["name"], type: Parameter["type"]) {
+	return identity<Parameter>({
+		kind: ZrNodeKind.Parameter,
+		name,
+		type,
 		flags: 0,
 	});
 }

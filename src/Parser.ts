@@ -14,14 +14,18 @@ import {
 	createIdentifier,
 	createIfStatement,
 	createInterpolatedString,
+	createKeywordTypeNode,
 	createNumberNode,
 	createOperator,
 	createOptionKey,
+	createParameter,
 	createPropertyAccessExpression,
 	createStringNode,
+	createTypeReference,
 	createVariableDeclaration,
 	createVariableStatement,
 } from "Nodes/Create";
+import { ZrTypeKeyword } from "Nodes/Enum";
 import { getFriendlyName } from "Nodes/Functions";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
@@ -34,7 +38,15 @@ import {
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
-import { InterpolatedStringToken, isToken, StringToken, Token, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
+import {
+	IdentifierToken,
+	InterpolatedStringToken,
+	isToken,
+	StringToken,
+	Token,
+	TokenTypes,
+	ZrTokenKind,
+} from "Tokens/Tokens";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"=": 1,
@@ -130,7 +142,7 @@ export default class ZrParser {
 	 */
 	private skip(kind: ZrTokenKind, value: string | number | boolean) {
 		if (this.is(kind, value)) {
-			this.lexer.next();
+			return this.lexer.next();
 		} else {
 			this.parserError("Unexpected '" + kind + "'", ZrParserErrorCode.Unexpected);
 		}
@@ -149,7 +161,44 @@ export default class ZrParser {
 		const parameters = new Array<Parameter>();
 		if (this.is(ZrTokenKind.Special, "(")) {
 			this.skip(ZrTokenKind.Special, "(");
-			while (this.lexer.hasNext() && !this.is(ZrTokenKind.Special, ")")) {}
+
+			let index = 0;
+			while (this.lexer.hasNext() && !this.is(ZrTokenKind.Special, ")")) {
+				if (index > 0) {
+					this.skip(ZrTokenKind.Special, ",");
+				}
+
+				index++;
+
+				// If valid parameter
+				if (this.is(ZrTokenKind.Identifier)) {
+					const id = this.lexer.next() as IdentifierToken;
+
+					// Check for parameter type
+					if (this.is(ZrTokenKind.Special, ":")) {
+						this.skip(ZrTokenKind.Special, ":");
+
+						// TODO: More advanced types later.
+						if (this.is(ZrTokenKind.String)) {
+							const typeName = this.lexer.next() as StringToken;
+							parameters.push(
+								createParameter(
+									createIdentifier(id.value),
+									createTypeReference(createIdentifier(typeName.value)),
+								),
+							);
+						} else {
+							this.parserError("Type expected", ZrParserErrorCode.Unexpected);
+						}
+					} else {
+						parameters.push(
+							createParameter(createIdentifier(id.value), createKeywordTypeNode(ZrTypeKeyword.Any)),
+						);
+					}
+				} else {
+					this.parserError(`Expected identifier`, ZrParserErrorCode.IdentifierExpected);
+				}
+			}
 			this.skip(ZrTokenKind.Special, ")");
 		} else {
 			this.parserError("'(' expected got '" + this.lexer.peek()?.value + "'", ZrParserErrorCode.ExpectedToken);

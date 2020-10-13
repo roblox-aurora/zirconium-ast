@@ -51,7 +51,14 @@ export enum ZrNodeKind {
 	FunctionDeclaration,
 
 	Parameter,
+
+	TypeReference,
 }
+
+export enum ZrTypeKeyword {
+	Any = "any",
+}
+
 export const CmdSyntaxKind = ZrNodeKind;
 
 export const enum NodeFlag {

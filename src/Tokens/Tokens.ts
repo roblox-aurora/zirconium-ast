@@ -15,6 +15,7 @@ export const enum ZrTokenKind {
 }
 
 export const KEYWORDS = ["if", "else", "for", "in", "func", "function"];
+export const TYPES = ["number", "string", "boolean"];
 
 export interface TokenTypes {
 	[ZrTokenKind.Identifier]: IdentifierToken;

@@ -152,12 +152,16 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 		} else if (isNode(node, CmdSyntaxKind.FunctionDeclaration)) {
 			print(prefix, "FunctionDeclaration", "{");
 			prettyPrintNodes([node.name], prefix + "\t");
-			prettyPrintNodes(node.parameters, prefix + "\t@param ");
+			prettyPrintNodes(node.parameters, prefix + "\t ");
 			prettyPrintNodes([node.body], prefix + "\t");
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.Parameter)) {
 			print(prefix, "Parameter", "{");
-			prettyPrintNodes([node.name], prefix + "\t");
+			prettyPrintNodes([node.name, node.type], prefix + "\t");
+			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.TypeReference)) {
+			print(prefix, "TypeReference", "{");
+			prettyPrintNodes([node.typeName], prefix + "\t");
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.IfStatement)) {
 			print(prefix, "IfStatement", "{");

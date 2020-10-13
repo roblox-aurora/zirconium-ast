@@ -29,6 +29,7 @@ export interface NodeTypes {
 	[ZrNodeKind.ParenthesizedExpression]: ParenthesizedExpression;
 	[ZrNodeKind.FunctionDeclaration]: FunctionDeclaration;
 	[ZrNodeKind.Parameter]: Parameter;
+	[ZrNodeKind.TypeReference]: TypeReference;
 }
 
 export interface NodeBase {
@@ -52,9 +53,15 @@ export interface ParenthesizedExpression extends NodeBase {
 	expression: ExpressionStatement;
 }
 
+export interface TypeReference extends NodeBase {
+	kind: ZrNodeKind.TypeReference;
+	typeName: Identifier;
+}
+
 export interface Parameter extends NodeBase {
 	kind: ZrNodeKind.Parameter;
 	name: Identifier;
+	type: TypeReference; // TODO: NumberKeyword, StringKeyword etc.
 }
 
 export interface FunctionDeclaration extends NodeBase {
