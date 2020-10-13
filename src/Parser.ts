@@ -10,6 +10,7 @@ import {
 	createCommandName,
 	createCommandSource,
 	createCommandStatement,
+	createForInStatement,
 	createFunctionDeclaration,
 	createIdentifier,
 	createIfStatement,
@@ -206,6 +207,39 @@ export default class ZrParser {
 		return parameters;
 	}
 
+	private parseFor() {
+		this.skip(ZrTokenKind.Keyword, "for");
+		if (this.is(ZrTokenKind.Identifier)) {
+			const id = this.lexer.next() as IdentifierToken;
+
+			if (this.is(ZrTokenKind.Keyword, "in")) {
+				this.lexer.next();
+				const targetId = this.get(ZrTokenKind.Identifier);
+				if (targetId !== undefined) {
+					this.lexer.next();
+					return createForInStatement(
+						createIdentifier(id.value),
+						createIdentifier(targetId.value),
+						this.parseBlock(),
+					);
+				} else {
+					const expression = this.mutateExpressionStatement(this.parseNextExpression());
+					if (isNode(expression, ZrNodeKind.CommandStatement)) {
+						return createForInStatement(createIdentifier(id.value), expression, this.parseBlock());
+					} else {
+						this.parserError("Identifier expected", ZrParserErrorCode.IdentifierExpected);
+					}
+
+					
+				}
+			} else {
+				this.parserError("'in' expected", ZrParserErrorCode.ExpectedToken);
+			}
+		} else {
+			this.parserError("Identifier expected", ZrParserErrorCode.IdentifierExpected);
+		}
+	}
+
 	private parseFunction() {
 		this.skip(ZrTokenKind.Keyword, "function");
 		// throw `Functions not yet implemented`;
@@ -371,6 +405,10 @@ export default class ZrParser {
 
 		if (this.is(ZrTokenKind.Keyword, "function")) {
 			return this.parseFunction();
+		}
+
+		if (this.is(ZrTokenKind.Keyword, "for")) {
+			return this.parseFor();
 		}
 
 		if (this.is(ZrTokenKind.Special, "{")) {

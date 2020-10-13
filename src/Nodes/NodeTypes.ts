@@ -30,6 +30,7 @@ export interface NodeTypes {
 	[ZrNodeKind.FunctionDeclaration]: FunctionDeclaration;
 	[ZrNodeKind.Parameter]: Parameter;
 	[ZrNodeKind.TypeReference]: TypeReference;
+	[ZrNodeKind.ForInStatement]: ForInStatement;
 }
 
 export interface NodeBase {
@@ -62,6 +63,13 @@ export interface Parameter extends NodeBase {
 	kind: ZrNodeKind.Parameter;
 	name: Identifier;
 	type: TypeReference; // TODO: NumberKeyword, StringKeyword etc.
+}
+
+export interface ForInStatement extends NodeBase {
+	kind: ZrNodeKind.ForInStatement;
+	initializer: Identifier;
+	expression: Identifier | CommandStatement;
+	statement: SourceBlock;
 }
 
 export interface FunctionDeclaration extends NodeBase {
@@ -158,7 +166,8 @@ export type ExpressionStatement =
 	| OptionExpression
 	| Option
 	| ParenthesizedExpression
-	| FunctionDeclaration;
+	| FunctionDeclaration
+	| ForInStatement;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {

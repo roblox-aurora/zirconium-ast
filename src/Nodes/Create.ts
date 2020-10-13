@@ -31,6 +31,7 @@ import {
 	FunctionDeclaration,
 	Parameter,
 	TypeReference,
+	ForInStatement,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -89,6 +90,20 @@ export function createIfStatement(
 	elseStatement: IfStatement["elseStatement"],
 ): IfStatement {
 	return { kind: ZrNodeKind.IfStatement, flags: 0, condition, thenStatement, elseStatement };
+}
+
+export function createForInStatement(
+	initializer: ForInStatement["initializer"],
+	expression: ForInStatement["expression"],
+	statement: ForInStatement["statement"],
+) {
+	return identity<ForInStatement>({
+		kind: ZrNodeKind.ForInStatement,
+		flags: 0,
+		initializer,
+		expression,
+		statement,
+	});
 }
 
 /**
