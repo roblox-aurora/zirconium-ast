@@ -46,3 +46,19 @@ command && command2 # Meant to only execute command2 if command succeeds
 command || command2 # Meant to only execute command2 if command fails
 ```
 Explicit calls can also be used with these.
+
+### If Statement
+```bash
+$value = true
+
+if $value { 
+    echo "True!"
+}
+
+if $value {
+    echo "True!"
+} else {
+    echo "False!"
+}
+```
+The above would print `True!` twice.
