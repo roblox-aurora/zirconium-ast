@@ -444,9 +444,17 @@ export default class ZrParser {
 		return source;
 	}
 
-	public parse() {
-		// this.lexer.reset();
+	public parseOrThrow() {
 		return createCommandSource(this.parseSource());
+	}
+
+	public parse() {
+		try {
+			return createCommandSource(this.parseSource());
+		} catch (e) {
+			warn(e);
+			return createCommandSource([]);
+		}
 	}
 
 	public getErrors(): readonly ParserError[] {
