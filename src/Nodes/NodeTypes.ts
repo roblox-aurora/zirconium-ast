@@ -1,33 +1,34 @@
-import type { CmdSyntaxKind, NodeFlag } from "./Enum";
+import type { ZrNodeKind, NodeFlag } from "./Enum";
 import { ASSIGNABLE } from "./Guards";
 
 export interface NodeTypes {
-	[CmdSyntaxKind.CommandStatement]: CommandStatement;
-	[CmdSyntaxKind.IfStatement]: IfStatement;
-	[CmdSyntaxKind.Block]: Block;
-	[CmdSyntaxKind.CommandName]: CommandName;
-	[CmdSyntaxKind.String]: StringLiteral;
-	[CmdSyntaxKind.OptionKey]: Option;
-	[CmdSyntaxKind.EndOfStatement]: EndOfStatement;
-	[CmdSyntaxKind.Source]: CommandSource;
-	[CmdSyntaxKind.Identifier]: Identifier;
-	[CmdSyntaxKind.Boolean]: BooleanLiteral;
-	[CmdSyntaxKind.Number]: NumberLiteral;
-	[CmdSyntaxKind.InterpolatedString]: InterpolatedStringExpression;
-	[CmdSyntaxKind.BinaryExpression]: BinaryExpression;
-	[CmdSyntaxKind.OperatorToken]: OperatorToken;
-	[CmdSyntaxKind.PrefixToken]: PrefixToken;
-	[CmdSyntaxKind.PrefixExpression]: PrefixExpression;
-	[CmdSyntaxKind.VariableDeclaration]: VariableDeclaration;
-	[CmdSyntaxKind.VariableStatement]: VariableStatement;
-	[CmdSyntaxKind.Invalid]: InvalidNode;
-	[CmdSyntaxKind.OptionExpression]: OptionExpression;
-	[CmdSyntaxKind.InnerExpression]: InnerExpression;
-	[CmdSyntaxKind.ArrayLiteralExpression]: ArrayLiteral;
+	[ZrNodeKind.CommandStatement]: CommandStatement;
+	[ZrNodeKind.IfStatement]: IfStatement;
+	[ZrNodeKind.Block]: Block;
+	[ZrNodeKind.CommandName]: CommandName;
+	[ZrNodeKind.String]: StringLiteral;
+	[ZrNodeKind.OptionKey]: Option;
+	[ZrNodeKind.EndOfStatement]: EndOfStatement;
+	[ZrNodeKind.Source]: CommandSource;
+	[ZrNodeKind.Identifier]: Identifier;
+	[ZrNodeKind.PropertyAccessExpression]: PropertyAccessExpression;
+	[ZrNodeKind.Boolean]: BooleanLiteral;
+	[ZrNodeKind.Number]: NumberLiteral;
+	[ZrNodeKind.InterpolatedString]: InterpolatedStringExpression;
+	[ZrNodeKind.BinaryExpression]: BinaryExpression;
+	[ZrNodeKind.OperatorToken]: OperatorToken;
+	[ZrNodeKind.PrefixToken]: PrefixToken;
+	[ZrNodeKind.PrefixExpression]: PrefixExpression;
+	[ZrNodeKind.VariableDeclaration]: VariableDeclaration;
+	[ZrNodeKind.VariableStatement]: VariableStatement;
+	[ZrNodeKind.Invalid]: InvalidNode;
+	[ZrNodeKind.OptionExpression]: OptionExpression;
+	[ZrNodeKind.InnerExpression]: InnerExpression;
+	[ZrNodeKind.ArrayLiteralExpression]: ArrayLiteral;
 }
 
 export interface NodeBase {
-	kind: CmdSyntaxKind;
+	kind: ZrNodeKind;
 	parent?: Node;
 	startPos?: number;
 	rawText?: string;
@@ -39,21 +40,21 @@ type OP = "&&" | "|" | "=";
 
 export interface OperatorToken extends NodeBase {
 	operator: string;
-	kind: CmdSyntaxKind.OperatorToken;
+	kind: ZrNodeKind.OperatorToken;
 }
 
 export interface CommandSource extends NodeBase {
-	kind: CmdSyntaxKind.Source;
+	kind: ZrNodeKind.Source;
 	children: Array<Node>;
 }
 
 export interface InterpolatedStringExpression extends NodeBase {
-	kind: CmdSyntaxKind.InterpolatedString;
+	kind: ZrNodeKind.InterpolatedString;
 	values: Array<StringLiteral | Identifier>;
 }
 
 export interface BinaryExpression extends NodeBase {
-	kind: CmdSyntaxKind.BinaryExpression;
+	kind: ZrNodeKind.BinaryExpression;
 	left: Node;
 	operator: OperatorToken;
 	right: Node;
@@ -61,42 +62,48 @@ export interface BinaryExpression extends NodeBase {
 }
 
 export interface ArrayLiteral extends NodeBase {
-	kind: CmdSyntaxKind.ArrayLiteralExpression;
+	kind: ZrNodeKind.ArrayLiteralExpression;
 	values: Node[];
 }
 
 export interface InvalidNode extends NodeBase {
-	kind: CmdSyntaxKind.Invalid;
+	kind: ZrNodeKind.Invalid;
 	expression: Node;
 	message: string;
 }
 
 export interface VariableDeclaration extends NodeBase {
-	kind: CmdSyntaxKind.VariableDeclaration;
+	kind: ZrNodeKind.VariableDeclaration;
 	modifiers?: never;
 	identifier: Identifier;
 	expression: AssignableExpression;
 }
 
 export interface VariableStatement extends NodeBase {
-	kind: CmdSyntaxKind.VariableStatement;
+	kind: ZrNodeKind.VariableStatement;
 	declaration: VariableDeclaration;
 }
 
+export interface PropertyAccessExpression extends NodeBase {
+	kind: ZrNodeKind.PropertyAccessExpression;
+	expression: Identifier;
+	name: Identifier;
+}
+
 export interface CommandName extends NodeBase {
-	kind: CmdSyntaxKind.CommandName;
+	kind: ZrNodeKind.CommandName;
 	name: StringLiteral;
 }
 
 export interface StringLiteral extends NodeBase {
-	kind: CmdSyntaxKind.String;
+	kind: ZrNodeKind.String;
 	quotes?: string;
 	isUnterminated?: boolean;
 	text: string;
 }
 
 export interface Block extends NodeBase {
-	kind: CmdSyntaxKind.Block;
+	kind: ZrNodeKind.Block;
 	statements: (CommandStatement | VariableStatement)[];
 }
 
@@ -110,35 +117,36 @@ export type ExpressionStatement =
 	| IfStatement
 	| CommandStatement
 	| VariableStatement
-	| ArrayLiteral;
+	| ArrayLiteral
+	| PropertyAccessExpression;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {
-	kind: CmdSyntaxKind.IfStatement;
+	kind: ZrNodeKind.IfStatement;
 	condition: ExpressionStatement | undefined;
 	thenStatement: Block | Statement | undefined;
 	elseStatement: Block | Statement | undefined;
 }
 
 export interface BooleanLiteral extends NodeBase {
-	kind: CmdSyntaxKind.Boolean;
+	kind: ZrNodeKind.Boolean;
 	value: boolean;
 }
 
 export interface NumberLiteral extends NodeBase {
-	kind: CmdSyntaxKind.Number;
+	kind: ZrNodeKind.Number;
 	value: number;
 }
 
 export interface CommandStatement extends NodeBase {
-	kind: CmdSyntaxKind.CommandStatement;
+	kind: ZrNodeKind.CommandStatement;
 	command: CommandName;
 	isUnterminated?: boolean;
 	children: Node[];
 }
 
 export interface InnerExpression extends NodeBase {
-	kind: CmdSyntaxKind.InnerExpression;
+	kind: ZrNodeKind.InnerExpression;
 	expression: CommandStatement | BinaryExpression | VariableStatement;
 }
 
@@ -172,7 +180,7 @@ export interface Identifier extends NodeBase {
 }
 
 export interface EndOfStatement extends NodeBase {
-	kind: CmdSyntaxKind.EndOfStatement;
+	kind: ZrNodeKind.EndOfStatement;
 }
 
 type NonParentNode<T> = T extends { children: Node[] } ? never : T;

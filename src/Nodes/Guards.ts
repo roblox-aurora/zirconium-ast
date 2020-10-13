@@ -17,7 +17,7 @@ import {
 	BooleanLiteral,
 	BinaryExpression,
 } from "./NodeTypes";
-import { NodeFlag, CmdSyntaxKind } from "./Enum";
+import { NodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
@@ -38,13 +38,13 @@ export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K
 	return nodes.filter((node): node is NodeTypes[K] => isNode(node, type));
 }
 
-export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind.CommandName): CommandName | undefined;
-export function getSiblingNode(nodes: Node[], kind: CmdSyntaxKind) {
+export function getSiblingNode(nodes: Node[], kind: ZrNodeKind.CommandName): CommandName | undefined;
+export function getSiblingNode(nodes: Node[], kind: ZrNodeKind) {
 	return nodes.find((f) => f.kind === kind);
 }
 
 export function isNodeIn<K extends keyof NodeTypes>(node: Node, type: readonly K[]): node is NodeTypes[K] {
-	return node !== undefined && (type as ReadonlyArray<CmdSyntaxKind>).includes(node.kind);
+	return node !== undefined && (type as ReadonlyArray<ZrNodeKind>).includes(node.kind);
 }
 
 export function isValidPrefixCharacter(input: string): input is typeof VALID_PREFIX_CHARS[number] {
@@ -55,10 +55,10 @@ export const VALID_VARIABLE_NAME = "^[A-Za-z_][A-Za-z0-9_]*$"; // matches $A, $a
 export const VALID_COMMAND_NAME = "^[A-Za-z][A-Z0-9a-z_%-]*$";
 
 const PREFIXABLE = [
-	CmdSyntaxKind.String,
-	CmdSyntaxKind.InterpolatedString,
-	CmdSyntaxKind.Number,
-	CmdSyntaxKind.Boolean,
+	ZrNodeKind.String,
+	ZrNodeKind.InterpolatedString,
+	ZrNodeKind.Number,
+	ZrNodeKind.Boolean,
 ] as const;
 
 /**
@@ -69,13 +69,13 @@ export function isPrefixableExpression(node: Node): node is NodeTypes[typeof PRE
 }
 
 export const ASSIGNABLE = [
-	CmdSyntaxKind.String,
-	CmdSyntaxKind.InterpolatedString,
-	CmdSyntaxKind.Identifier,
-	CmdSyntaxKind.Number,
-	CmdSyntaxKind.Boolean,
-	CmdSyntaxKind.InnerExpression,
-	CmdSyntaxKind.ArrayLiteralExpression,
+	ZrNodeKind.String,
+	ZrNodeKind.InterpolatedString,
+	ZrNodeKind.Identifier,
+	ZrNodeKind.Number,
+	ZrNodeKind.Boolean,
+	ZrNodeKind.InnerExpression,
+	ZrNodeKind.ArrayLiteralExpression,
 ] as const;
 
 /**
@@ -86,11 +86,11 @@ export function isAssignableExpression(node: Node): node is NodeTypes[typeof ASS
 }
 
 const LIT = [
-	CmdSyntaxKind.String,
-	CmdSyntaxKind.InterpolatedString,
-	CmdSyntaxKind.Identifier,
-	CmdSyntaxKind.Number,
-	CmdSyntaxKind.Boolean,
+	ZrNodeKind.String,
+	ZrNodeKind.InterpolatedString,
+	ZrNodeKind.Identifier,
+	ZrNodeKind.Number,
+	ZrNodeKind.Boolean,
 ] as const;
 
 /**
@@ -101,9 +101,9 @@ export function isPrimitiveExpression(node: Node): node is NodeTypes[typeof LIT[
 }
 
 const EXPRESSIONABLE = [
-	CmdSyntaxKind.CommandStatement,
-	CmdSyntaxKind.VariableStatement,
-	CmdSyntaxKind.BinaryExpression,
+	ZrNodeKind.CommandStatement,
+	ZrNodeKind.VariableStatement,
+	ZrNodeKind.BinaryExpression,
 ] as const;
 
 /**
@@ -114,53 +114,53 @@ export function isValidExpression(node: Node): node is NodeTypes[typeof EXPRESSI
 }
 
 export function isSource(node: Node): node is CommandSource {
-	return node !== undefined && node.kind === CmdSyntaxKind.Source;
+	return node !== undefined && node.kind === ZrNodeKind.Source;
 }
 
 export function isCommandStatement(node: Node): node is CommandStatement {
-	return node !== undefined && node.kind === CmdSyntaxKind.CommandStatement;
+	return node !== undefined && node.kind === ZrNodeKind.CommandStatement;
 }
 
 export function isVariableStatement(node: Node): node is VariableStatement {
-	return node !== undefined && node.kind === CmdSyntaxKind.VariableStatement;
+	return node !== undefined && node.kind === ZrNodeKind.VariableStatement;
 }
 
 export function isIdentifier(node: Node): node is Identifier {
-	return node !== undefined && node.kind === CmdSyntaxKind.Identifier;
+	return node !== undefined && node.kind === ZrNodeKind.Identifier;
 }
 
 export function isStringExpression(node: Node): node is StringLiteral | InterpolatedStringExpression {
-	return node !== undefined && (node.kind === CmdSyntaxKind.String || node.kind === CmdSyntaxKind.InterpolatedString);
+	return node !== undefined && (node.kind === ZrNodeKind.String || node.kind === ZrNodeKind.InterpolatedString);
 }
 
 export function isBooleanLiteral(node: Node): node is BooleanLiteral {
-	return node !== undefined && node.kind === CmdSyntaxKind.Boolean;
+	return node !== undefined && node.kind === ZrNodeKind.Boolean;
 }
 
 export function isNumberLiteral(node: Node): node is NumberLiteral {
-	return node !== undefined && node.kind === CmdSyntaxKind.Number;
+	return node !== undefined && node.kind === ZrNodeKind.Number;
 }
 
 export function isStringLiteral(node: Node): node is StringLiteral {
-	return node !== undefined && node.kind === CmdSyntaxKind.String;
+	return node !== undefined && node.kind === ZrNodeKind.String;
 }
 
 export function isPrefixToken(node: Node): node is PrefixToken {
-	return node !== undefined && node.kind === CmdSyntaxKind.PrefixToken;
+	return node !== undefined && node.kind === ZrNodeKind.PrefixToken;
 }
 
 export function isOperatorToken(node: Node): node is OperatorToken {
-	return node !== undefined && node.kind === CmdSyntaxKind.OperatorToken;
+	return node !== undefined && node.kind === ZrNodeKind.OperatorToken;
 }
 
 export function isBinaryExpression(node: Node): node is BinaryExpression {
-	return node !== undefined && node.kind === CmdSyntaxKind.BinaryExpression;
+	return node !== undefined && node.kind === ZrNodeKind.BinaryExpression;
 }
 
 export function isOptionKey(node: Node): node is Option {
-	return node !== undefined && node.kind === CmdSyntaxKind.OptionKey;
+	return node !== undefined && node.kind === ZrNodeKind.OptionKey;
 }
 
 export function isInvalid(node: Node): node is InvalidNode {
-	return node !== undefined && node.kind === CmdSyntaxKind.Invalid;
+	return node !== undefined && node.kind === ZrNodeKind.Invalid;
 }

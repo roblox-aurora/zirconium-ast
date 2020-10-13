@@ -1,4 +1,4 @@
-import { CmdSyntaxKind, NodeFlag } from "./Enum";
+import { ZrNodeKind, NodeFlag } from "./Enum";
 import {
 	isNode,
 	isNodeIn,
@@ -11,7 +11,8 @@ import {
 import * as typeGuards from "./Guards";
 import { getKindName, getPreviousNode, getNextNode, getNodeKindName } from "./Functions";
 export {
-	CmdSyntaxKind,
+	ZrNodeKind as CmdSyntaxKind,
+	ZrNodeKind,
 	NodeFlag,
 	isNode,
 	isNodeIn,

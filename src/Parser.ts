@@ -1,6 +1,6 @@
 import { AstCommandDefinitions } from "Definitions/Definitions";
 import ZrLexer from "Lexer";
-import { CmdSyntaxKind, isNode } from "Nodes";
+import { ZrNodeKind, isNode } from "Nodes";
 import {
 	createArrayLiteral,
 	createBinaryExpression,
@@ -215,6 +215,10 @@ export default class ZrParser {
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
+				if (this.strict && token.quotes === undefined) {
+					this.throwParserError("Cannot have non-quoted string in strict mode!");
+				}
+
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
@@ -251,7 +255,7 @@ export default class ZrParser {
 			if (otherPrecedence > precedence) {
 				this.lexer.next();
 
-				if (token.value === "=" && isNode(left, CmdSyntaxKind.Identifier)) {
+				if (token.value === "=" && isNode(left, ZrNodeKind.Identifier)) {
 					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
 					if (isAssignableExpression(right)) {
 						// isAssignment

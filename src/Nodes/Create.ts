@@ -1,4 +1,4 @@
-import { CmdSyntaxKind, NodeFlag } from "./Enum";
+import { ZrNodeKind, NodeFlag } from "./Enum";
 import {
 	InterpolatedStringExpression,
 	StringLiteral,
@@ -29,7 +29,7 @@ import { isNode } from "./Guards";
 export function createInterpolatedString(
 	...values: InterpolatedStringExpression["values"]
 ): InterpolatedStringExpression {
-	const expression: InterpolatedStringExpression = { kind: CmdSyntaxKind.InterpolatedString, values, flags: 0 };
+	const expression: InterpolatedStringExpression = { kind: ZrNodeKind.InterpolatedString, values, flags: 0 };
 	for (const value of values) {
 		value.parent = expression;
 	}
@@ -38,7 +38,7 @@ export function createInterpolatedString(
 
 export function createArrayLiteral(values: ArrayLiteral["values"]) {
 	return identity<ArrayLiteral>({
-		kind: CmdSyntaxKind.ArrayLiteralExpression,
+		kind: ZrNodeKind.ArrayLiteralExpression,
 		flags: 0,
 		values,
 	});
@@ -56,7 +56,7 @@ export function createIfStatement(
 	thenStatement: IfStatement["thenStatement"],
 	elseStatement: IfStatement["elseStatement"],
 ): IfStatement {
-	return { kind: CmdSyntaxKind.IfStatement, flags: 0, condition, thenStatement, elseStatement };
+	return { kind: ZrNodeKind.IfStatement, flags: 0, condition, thenStatement, elseStatement };
 }
 
 /**
@@ -70,18 +70,18 @@ export function flattenInterpolatedString(
 ): StringLiteral {
 	let text = "";
 	for (const value of expression.values) {
-		if (isNode(value, CmdSyntaxKind.Identifier)) {
+		if (isNode(value, ZrNodeKind.Identifier)) {
 			text += tostring(variables[value.name]);
 		} else {
 			text += value.text;
 		}
 	}
-	return { text, kind: CmdSyntaxKind.String, flags: 0 };
+	return { text, kind: ZrNodeKind.String, flags: 0 };
 }
 
 export function createCommandStatement(command: CommandName, children: Node[], startPos?: number, endPos?: number) {
 	const statement: CommandStatement = {
-		kind: CmdSyntaxKind.CommandStatement,
+		kind: ZrNodeKind.CommandStatement,
 		command,
 		children,
 		flags: 0,
@@ -97,7 +97,7 @@ export function createCommandStatement(command: CommandName, children: Node[], s
 
 export function createInnerExpression(expression: InnerExpression["expression"], startPos?: number, endPos?: number) {
 	const statement: InnerExpression = {
-		kind: CmdSyntaxKind.InnerExpression,
+		kind: ZrNodeKind.InnerExpression,
 		expression,
 		flags: 0,
 		startPos: startPos,
@@ -107,18 +107,18 @@ export function createInnerExpression(expression: InnerExpression["expression"],
 }
 
 export function createPrefixToken(value: PrefixToken["value"]): PrefixToken {
-	return { kind: CmdSyntaxKind.PrefixToken, value, flags: 0 };
+	return { kind: ZrNodeKind.PrefixToken, value, flags: 0 };
 }
 
 export function createPrefixExpression(
 	prefix: PrefixExpression["prefix"],
 	expression: PrefixExpression["expression"],
 ): PrefixExpression {
-	return { kind: CmdSyntaxKind.PrefixExpression, prefix, expression, flags: 0 };
+	return { kind: ZrNodeKind.PrefixExpression, prefix, expression, flags: 0 };
 }
 
 export function createCommandSource(children: CommandSource["children"]) {
-	const statement: CommandSource = { kind: CmdSyntaxKind.Source, children, flags: 0 };
+	const statement: CommandSource = { kind: ZrNodeKind.Source, children, flags: 0 };
 	for (const child of statement.children) {
 		child.parent = statement;
 	}
@@ -126,16 +126,16 @@ export function createCommandSource(children: CommandSource["children"]) {
 }
 
 export function createStringNode(text: string, quotes?: string): StringLiteral {
-	return { kind: CmdSyntaxKind.String, text, quotes, flags: 0 };
+	return { kind: ZrNodeKind.String, text, quotes, flags: 0 };
 }
 
 export function createNumberNode(value: number): NumberLiteral {
-	return { kind: CmdSyntaxKind.Number, value, flags: 0 };
+	return { kind: ZrNodeKind.Number, value, flags: 0 };
 }
 
 export function createCommandName(name: StringLiteral): CommandName {
 	return {
-		kind: CmdSyntaxKind.CommandName,
+		kind: ZrNodeKind.CommandName,
 		name,
 		flags: 0,
 		startPos: name.startPos,
@@ -145,11 +145,11 @@ export function createCommandName(name: StringLiteral): CommandName {
 }
 
 export function createIdentifier(name: string): Identifier {
-	return { kind: CmdSyntaxKind.Identifier, name, flags: 0 };
+	return { kind: ZrNodeKind.Identifier, name, flags: 0 };
 }
 
 export function createOptionKey(flag: string, endPos?: number): OptionKey {
-	return { kind: CmdSyntaxKind.OptionKey, flag, flags: 0, startPos: endPos ? endPos - flag.size() : 0, endPos };
+	return { kind: ZrNodeKind.OptionKey, flag, flags: 0, startPos: endPos ? endPos - flag.size() : 0, endPos };
 }
 
 export function createOptionExpression(
@@ -157,7 +157,7 @@ export function createOptionExpression(
 	expression: OptionExpression["expression"],
 ): OptionExpression {
 	return {
-		kind: CmdSyntaxKind.OptionExpression,
+		kind: ZrNodeKind.OptionExpression,
 		startPos: option.startPos,
 		endPos: expression.endPos,
 		flags: 0,
@@ -168,7 +168,7 @@ export function createOptionExpression(
 
 export function createOperator(operator: OperatorToken["operator"], startPos?: number): OperatorToken {
 	return {
-		kind: CmdSyntaxKind.OperatorToken,
+		kind: ZrNodeKind.OperatorToken,
 		operator,
 		flags: 0,
 		startPos,
@@ -180,19 +180,19 @@ export function createVariableDeclaration(
 	identifier: Identifier,
 	expression: VariableDeclaration["expression"],
 ): VariableDeclaration {
-	return { kind: CmdSyntaxKind.VariableDeclaration, identifier, expression, flags: 0 };
+	return { kind: ZrNodeKind.VariableDeclaration, identifier, expression, flags: 0 };
 }
 
 export function createVariableStatement(declaration: VariableDeclaration): VariableStatement {
-	return { kind: CmdSyntaxKind.VariableStatement, declaration, flags: 0 };
+	return { kind: ZrNodeKind.VariableStatement, declaration, flags: 0 };
 }
 
 export function createBooleanNode(value: boolean): BooleanLiteral {
-	return { kind: CmdSyntaxKind.Boolean, value, flags: 0 };
+	return { kind: ZrNodeKind.Boolean, value, flags: 0 };
 }
 
 export function createEndOfStatementNode(): EndOfStatement {
-	return { kind: CmdSyntaxKind.EndOfStatement, flags: 0 };
+	return { kind: ZrNodeKind.EndOfStatement, flags: 0 };
 }
 
 export function createInvalidNode(
@@ -202,7 +202,7 @@ export function createInvalidNode(
 	endPos?: number,
 ): InvalidNode {
 	return {
-		kind: CmdSyntaxKind.Invalid,
+		kind: ZrNodeKind.Invalid,
 		expression,
 		message,
 		flags: NodeFlag.NodeHasError,
@@ -221,7 +221,7 @@ export function createBinaryExpression(
 	endPos?: number,
 ): BinaryExpression {
 	const expression: BinaryExpression = {
-		kind: CmdSyntaxKind.BinaryExpression,
+		kind: ZrNodeKind.BinaryExpression,
 		left,
 		operator: op,
 		right,

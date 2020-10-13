@@ -1,4 +1,4 @@
-export enum CmdSyntaxKind {
+export enum ZrNodeKind {
 	Unknown,
 	/** `cmd ...; cmd2 ...; ...` */
 	Source,
@@ -41,11 +41,12 @@ export enum CmdSyntaxKind {
 	/** @todo `$var[0]` */
 	ArrayIndexExpression,
 	/** @todo `$var.value` */
-	IndexExpression,
+	PropertyAccessExpression,
 
 	/** @todo `for (<var> in <expression>)` */
 	ForInStatement,
 }
+export const CmdSyntaxKind = ZrNodeKind;
 
 export const enum NodeFlag {
 	None = 0,

@@ -1,20 +1,20 @@
-import { CmdSyntaxKind } from "./Enum";
+import { ZrNodeKind } from "./Enum";
 import { Node, ParentNode, BooleanLiteral } from "./NodeTypes";
 
-export function getKindName(kind: CmdSyntaxKind | undefined) {
+export function getKindName(kind: ZrNodeKind | undefined) {
 	if (kind === undefined) {
 		return "<none>";
 	}
 
-	return CmdSyntaxKind[kind];
+	return ZrNodeKind[kind];
 }
 
 export function getFriendlyName(node: Node, isConst = false) {
-	if (node.kind === CmdSyntaxKind.String || node.kind === CmdSyntaxKind.InterpolatedString) {
+	if (node.kind === ZrNodeKind.String || node.kind === ZrNodeKind.InterpolatedString) {
 		return "string";
-	} else if (node.kind === CmdSyntaxKind.Number) {
+	} else if (node.kind === ZrNodeKind.Number) {
 		return "number";
-	} else if (node.kind === CmdSyntaxKind.Boolean) {
+	} else if (node.kind === ZrNodeKind.Boolean) {
 		return isConst ? (node as BooleanLiteral).value : "boolean";
 	}
 
