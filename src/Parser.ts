@@ -56,6 +56,7 @@ interface ZrParserOptions {
 export default class ZrParser {
 	private errors = new Array<NodeError>();
 	private preventCommandParsing = false;
+	private strict = false;
 	public constructor(private lexer: ZrLexer, private options: ZrParserOptions) {}
 
 	private peekLexer() {
@@ -92,7 +93,7 @@ export default class ZrParser {
 		if (this.is(kind, value)) {
 			this.lexer.next();
 		} else {
-			throw `Invalid ${this.lexer.peek()?.kind}, expected ${kind}`;
+			throw `Invalid ${this.lexer.peek()?.kind} '${this.lexer.peek()?.value}', expected ${kind} '${value}'`;
 		}
 	}
 
@@ -111,16 +112,36 @@ export default class ZrParser {
 		return this.is(ZrTokenKind.Operator);
 	}
 
-	private parseCommandStatement(token: StringToken) {
+	private parseCommandStatement(token: StringToken, isStrictFunctionCall = this.strict) {
 		const commandName = createCommandName(createStringNode(token.value));
 
 		const nodes = new Array<Node>();
 		nodes.push(commandName);
 
+		// Enable 'strict' function-like calls e.g. `kill(vorlias)` vs `kill vorlias`
+		if (this.is(ZrTokenKind.Special, "(") || isStrictFunctionCall) {
+			this.skip(ZrTokenKind.Special, "(");
+			isStrictFunctionCall = true;
+		}
+
+		let argumentIndex = 0;
 		while (this.lexer.hasNext() && !this.isNextEndOfStatement() && !this.isOperatorToken()) {
-			this.preventCommandParsing = true;
+			if (isStrictFunctionCall && this.is(ZrTokenKind.Special, ")")) {
+				break;
+			}
+
+			if (isStrictFunctionCall && argumentIndex > 0) {
+				this.skip(ZrTokenKind.Special, ",");
+			}
+
 			nodes.push(this.parseNextExpression());
+
 			this.preventCommandParsing = false;
+			argumentIndex++;
+		}
+
+		if (isStrictFunctionCall) {
+			this.skip(ZrTokenKind.Special, ")");
 		}
 
 		return createCommandStatement(commandName, nodes);
