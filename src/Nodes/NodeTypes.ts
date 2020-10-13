@@ -133,7 +133,7 @@ export interface IfStatement extends NodeBase {
 	kind: ZrNodeKind.IfStatement;
 	condition: ExpressionStatement | undefined;
 	thenStatement: SourceBlock | Statement | undefined;
-	elseStatement: SourceBlock | Statement | undefined;
+	elseStatement: IfStatement | SourceBlock | Statement | undefined;
 }
 
 export interface BooleanLiteral extends NodeBase {

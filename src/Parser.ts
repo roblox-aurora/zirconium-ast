@@ -114,7 +114,10 @@ export default class ZrParser {
 
 		if (this.is(ZrTokenKind.Keyword, "else")) {
 			this.lexer.next();
-			if (this.is(ZrTokenKind.Special, "{")) {
+
+			if (this.is(ZrTokenKind.Keyword, "if")) {
+				node.elseStatement = this.parseIfStatement();
+			} else if (this.is(ZrTokenKind.Special, "{")) {
 				node.elseStatement = this.parseBlock();
 			}
 		}
