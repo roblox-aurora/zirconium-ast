@@ -32,6 +32,13 @@ kill [ vorlias, augmin ]
 kill([ "vorlias", "augmin" ])
 ```
 
+Indexing
+```bash
+$array = [ "Hello, World!" ]
+$helloWorld = $array.0 # will retrieve the first value
+echo $helloWorld
+```
+
 ### Using Pipes and Synchronous calls
 ```bash
 command | command2 # Passes values from command to command2
