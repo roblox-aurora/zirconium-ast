@@ -68,13 +68,14 @@ export function isPrefixableExpression(node: Node): node is NodeTypes[typeof PRE
 	return isNodeIn(node, PREFIXABLE);
 }
 
-const ASSIGNABLE = [
+export const ASSIGNABLE = [
 	CmdSyntaxKind.String,
 	CmdSyntaxKind.InterpolatedString,
 	CmdSyntaxKind.Identifier,
 	CmdSyntaxKind.Number,
 	CmdSyntaxKind.Boolean,
 	CmdSyntaxKind.InnerExpression,
+	CmdSyntaxKind.ArrayLiteralExpression,
 ] as const;
 
 /**

@@ -1,4 +1,5 @@
 import type { CmdSyntaxKind, NodeFlag } from "./Enum";
+import { ASSIGNABLE } from "./Guards";
 
 export interface NodeTypes {
 	[CmdSyntaxKind.CommandStatement]: CommandStatement;
@@ -22,6 +23,7 @@ export interface NodeTypes {
 	[CmdSyntaxKind.Invalid]: InvalidNode;
 	[CmdSyntaxKind.OptionExpression]: OptionExpression;
 	[CmdSyntaxKind.InnerExpression]: InnerExpression;
+	[CmdSyntaxKind.ArrayLiteralExpression]: ArrayLiteral;
 }
 
 export interface NodeBase {
@@ -58,6 +60,11 @@ export interface BinaryExpression extends NodeBase {
 	children: Node[];
 }
 
+export interface ArrayLiteral extends NodeBase {
+	kind: CmdSyntaxKind.ArrayLiteralExpression;
+	values: Node[];
+}
+
 export interface InvalidNode extends NodeBase {
 	kind: CmdSyntaxKind.Invalid;
 	expression: Node;
@@ -68,13 +75,7 @@ export interface VariableDeclaration extends NodeBase {
 	kind: CmdSyntaxKind.VariableDeclaration;
 	modifiers?: never;
 	identifier: Identifier;
-	expression:
-		| NumberLiteral
-		| StringLiteral
-		| InterpolatedStringExpression
-		| BooleanLiteral
-		| Identifier
-		| InnerExpression;
+	expression: AssignableExpression;
 }
 
 export interface VariableStatement extends NodeBase {
@@ -107,8 +108,11 @@ export type ExpressionStatement =
 	| Identifier
 	| BinaryExpression
 	| IfStatement
-	| CommandStatement;
+	| CommandStatement
+	| VariableStatement
+	| ArrayLiteral;
 export type Statement = CommandStatement | VariableStatement;
+export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {
 	kind: CmdSyntaxKind.IfStatement;
 	condition: ExpressionStatement | undefined;

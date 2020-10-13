@@ -22,6 +22,7 @@ import {
 	NodeError,
 	OptionExpression,
 	IfStatement,
+	ArrayLiteral,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -33,6 +34,14 @@ export function createInterpolatedString(
 		value.parent = expression;
 	}
 	return expression;
+}
+
+export function createArrayLiteral(values: ArrayLiteral["values"]) {
+	return identity<ArrayLiteral>({
+		kind: CmdSyntaxKind.ArrayLiteralExpression,
+		flags: 0,
+		values,
+	});
 }
 
 export function createNodeError(message: string, node: Node): NodeError {

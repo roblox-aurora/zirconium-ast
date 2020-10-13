@@ -1,6 +1,8 @@
 import { AstCommandDefinitions } from "Definitions/Definitions";
 import ZrLexer from "Lexer";
+import { CmdSyntaxKind, isNode } from "Nodes";
 import {
+	createArrayLiteral,
 	createBinaryExpression,
 	createCommandName,
 	createCommandSource,
@@ -12,7 +14,10 @@ import {
 	createNumberNode,
 	createOperator,
 	createStringNode,
+	createVariableDeclaration,
+	createVariableStatement,
 } from "Nodes/Create";
+import { isAssignableExpression } from "Nodes/Guards";
 import {
 	ExpressionStatement,
 	Identifier,
@@ -23,6 +28,7 @@ import {
 	StringLiteral,
 } from "Nodes/NodeTypes";
 import { InterpolatedStringToken, isToken, StringToken, TokenTypes, ZrTokenKind } from "Tokens/Tokens";
+import { prettyPrintNodes } from "Utility";
 
 const OPERATOR_PRECEDENCE: Record<string, number> = {
 	"=": 1,
@@ -133,20 +139,50 @@ export default class ZrParser {
 		return createInterpolatedString(...resulting);
 	}
 
+	private parseArrayExpression(start = "[", stop = "]", separator = ",") {
+		const values = new Array<Node>();
+		let index = 0;
+
+		this.skip(ZrTokenKind.Special, start);
+
+		while (this.lexer.hasNext()) {
+			this.isParsingCommand = true;
+			if (this.is(ZrTokenKind.Special, stop)) {
+				break;
+			}
+
+			if (index > 0) {
+				this.skip(ZrTokenKind.Special, separator);
+			}
+
+			prettyPrintNodes(values, "arrayExpression");
+			values.push(this.parseNextExpressionStatement());
+
+			this.isParsingCommand = false;
+			index++;
+		}
+
+		this.skip(ZrTokenKind.Special, stop);
+
+		return createArrayLiteral(values);
+	}
+
 	/**
 	 * Parses the next expression statement
 	 */
 	private parseNextExpressionStatement() {
-		const nextNode = this.lexer.peek();
-		print("parseExpressionStatement", nextNode?.kind, nextNode?.value);
-
 		if (this.is(ZrTokenKind.Keyword, "if")) {
 			return this.parseIfStatement();
+		}
+
+		if (this.is(ZrTokenKind.Special, "[")) {
+			return this.parseArrayExpression();
 		}
 
 		// Handle literals
 		const token = this.lexer.next();
 		assert(token);
+		print(token.kind, token.value)
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.isParsingCommand || token.quotes !== undefined) {
@@ -182,13 +218,23 @@ export default class ZrParser {
 		if (token) {
 			const otherPrecedence = OPERATOR_PRECEDENCE[token.value];
 			if (otherPrecedence > precedence) {
-				print("createBInary");
 				this.lexer.next();
-				return createBinaryExpression(
-					left,
-					createOperator(token.value),
-					this.mutateExpressionStatement(this.parseNextExpressionStatement()),
-				);
+
+				if (token.value === "=" && isNode(left, CmdSyntaxKind.Identifier)) {
+					const right = this.parseNextExpression();
+					if (isAssignableExpression(right)) {
+						// isAssignment
+						return createVariableStatement(createVariableDeclaration(left, right));
+					} else {
+						this.throwParserError(`Cannot assign ${right.kind} to VariableStatement`);
+					}
+				} else {
+					return createBinaryExpression(
+						left,
+						createOperator(token.value),
+						this.mutateExpressionStatement(this.parseNextExpressionStatement()),
+					);
+				}
 			}
 		}
 

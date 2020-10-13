@@ -9,11 +9,7 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local stream = ZrTextStream.new([[
-    # I want to kill myself
-    echo "Hello, World!"
-
-    # Nevermind then...
-    echo "Hello there. $boy!"
+    $x = [hello, "there lol $haayy"]
 ]])
 local lexer = ZrLexer.new(stream)
 
