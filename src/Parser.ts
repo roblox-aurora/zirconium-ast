@@ -14,6 +14,7 @@ import {
 	createInvalidNode,
 	createNumberNode,
 	createOperator,
+	createPropertyAccessExpression,
 	createStringNode,
 	createVariableDeclaration,
 	createVariableStatement,
@@ -25,6 +26,7 @@ import {
 	Node,
 	NodeError,
 	OperatorToken,
+	PropertyAccessExpression,
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
@@ -228,6 +230,12 @@ export default class ZrParser {
 
 		if (isToken(token, ZrTokenKind.Identifier)) {
 			return createIdentifier(token.value);
+		} else if (isToken(token, ZrTokenKind.PropertyAccess)) {
+			let expr: Identifier | PropertyAccessExpression = createIdentifier(token.value);
+			for (const name of token.properties) {
+				expr = createPropertyAccessExpression(expr, createIdentifier(name));
+			}
+			return expr;
 		} else if (isToken(token, ZrTokenKind.Number)) {
 			return createNumberNode(token.value);
 		} else if (isToken(token, ZrTokenKind.Boolean)) {

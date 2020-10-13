@@ -8,6 +8,8 @@ export const enum ZrTokenKind {
 	Operator = "Operator",
 	Special = "Special",
 	Keyword = "Keyword",
+	PropertyAccess = "Property",
+	ArrayIndex = "ArrayIndex",
 	EndOfStatement = "EndOfStatement",
 }
 
@@ -23,6 +25,8 @@ export interface TokenTypes {
 	[ZrTokenKind.Keyword]: KeywordToken;
 	[ZrTokenKind.InterpolatedString]: InterpolatedStringToken;
 	[ZrTokenKind.EndOfStatement]: EndOfStatementToken;
+	[ZrTokenKind.ArrayIndex]: ArrayIndexToken;
+	[ZrTokenKind.PropertyAccess]: PropertyAccessToken;
 }
 
 export interface TokenBase {
@@ -31,6 +35,17 @@ export interface TokenBase {
 
 export interface IdentifierToken extends TokenBase {
 	kind: ZrTokenKind.Identifier;
+	value: string;
+}
+
+export interface ArrayIndexToken extends TokenBase {
+	kind: ZrTokenKind.ArrayIndex;
+	value: string;
+}
+
+export interface PropertyAccessToken extends TokenBase {
+	kind: ZrTokenKind.PropertyAccess;
+	properties: string[];
 	value: string;
 }
 

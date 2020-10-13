@@ -9,6 +9,7 @@ import {
 	KeywordToken,
 	NumberToken,
 	OperatorToken,
+	PropertyAccessToken,
 	SpecialToken,
 	StringToken,
 	Token,
@@ -196,19 +197,48 @@ export default class ZrLexer {
 		});
 	}
 
-	private readVariableToken(): IdentifierToken {
+	private readVariableToken() {
+		const properties = new Array<string>();
+
 		// skip $
 		this.stream.next();
 
 		// read the id
 		const id = this.readWhile(this.isId);
 
+		// read any property access
+		while (this.stream.hasNext() && this.stream.peek() === ".") {
+			this.stream.next();
+			properties.push(this.readWhile(this.isId));
+		}
+
+		if (properties.size() > 0) {
+			return identity<PropertyAccessToken>({
+				kind: ZrTokenKind.PropertyAccess,
+				properties,
+				value: id,
+			});
+		} else {
+			return identity<IdentifierToken>({
+				kind: ZrTokenKind.Identifier,
+				value: properties[0],
+			});
+		}
+
+		// if (this.stream.peek() === ".") {
+		// }
+
 		// Return the identifier
-		return {
-			kind: ZrTokenKind.Identifier,
-			value: id,
-		};
 	}
+
+	// private readDotToken() {
+	// 	this.stream.next();
+	// 	const id = this.readWhile(this.isId);
+	// 	return identity<PropertyNameToken>({
+	// 		kind: ZrTokenKind.PropertyName,
+	// 		value: id,
+	// 	});
+	// }
 
 	/**
 	 * Gets the next token
@@ -228,6 +258,10 @@ export default class ZrLexer {
 			this.readComment();
 			return this.readNext();
 		}
+
+		// if (char === TokenCharacter.Dot) {
+		// 	return this.readDotToken();
+		// }
 
 		if (char === TokenCharacter.Dollar) {
 			return this.readVariableToken();

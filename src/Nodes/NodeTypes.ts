@@ -86,7 +86,7 @@ export interface VariableStatement extends NodeBase {
 
 export interface PropertyAccessExpression extends NodeBase {
 	kind: ZrNodeKind.PropertyAccessExpression;
-	expression: Identifier;
+	expression: Identifier | PropertyAccessExpression;
 	name: Identifier;
 }
 

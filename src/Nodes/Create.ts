@@ -23,6 +23,7 @@ import {
 	OptionExpression,
 	IfStatement,
 	ArrayLiteral,
+	PropertyAccessExpression,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -41,6 +42,18 @@ export function createArrayLiteral(values: ArrayLiteral["values"]) {
 		kind: ZrNodeKind.ArrayLiteralExpression,
 		flags: 0,
 		values,
+	});
+}
+
+export function createPropertyAccessExpression(
+	expression: PropertyAccessExpression["expression"],
+	name: PropertyAccessExpression["name"],
+) {
+	return identity<PropertyAccessExpression>({
+		kind: ZrNodeKind.PropertyAccessExpression,
+		flags: 0,
+		expression,
+		name,
 	});
 }
 

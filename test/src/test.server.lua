@@ -9,9 +9,12 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local stream = ZrTextStream.new([[
-    $arrayExample = [ 1337, true, hello, "Hello there", "Hello $playerName!", false, 42, $value $value.otherValue ]
+    $arrayExample = [ .miscValue 1337, true, hello, "Hello there", "Hello $playerName!", false, 42, $value ]
     command([ "Hello there", 3.5 ], 'hello', 'there')
     command [ "Hello there" 3.5 ] hello there
+
+    command "Hello $there!"
+    command "Hello $interpolated.inner!"
 ]])
 local lexer = ZrLexer.new(stream)
 
