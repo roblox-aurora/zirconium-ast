@@ -24,6 +24,7 @@ import {
 	IfStatement,
 	ArrayLiteral,
 	PropertyAccessExpression,
+	ArrayIndexExpression,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -42,6 +43,18 @@ export function createArrayLiteral(values: ArrayLiteral["values"]) {
 		kind: ZrNodeKind.ArrayLiteralExpression,
 		flags: 0,
 		values,
+	});
+}
+
+export function createArrayIndexExpression(
+	expression: ArrayIndexExpression["expression"],
+	index: ArrayIndexExpression["index"],
+) {
+	return identity<ArrayIndexExpression>({
+		kind: ZrNodeKind.ArrayIndexExpression,
+		flags: 0,
+		expression,
+		index,
 	});
 }
 

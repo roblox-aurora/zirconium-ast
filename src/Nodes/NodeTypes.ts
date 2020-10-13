@@ -25,6 +25,7 @@ export interface NodeTypes {
 	[ZrNodeKind.OptionExpression]: OptionExpression;
 	[ZrNodeKind.InnerExpression]: InnerExpression;
 	[ZrNodeKind.ArrayLiteralExpression]: ArrayLiteral;
+	[ZrNodeKind.ArrayIndexExpression]: ArrayIndexExpression;
 }
 
 export interface NodeBase {
@@ -86,8 +87,14 @@ export interface VariableStatement extends NodeBase {
 
 export interface PropertyAccessExpression extends NodeBase {
 	kind: ZrNodeKind.PropertyAccessExpression;
-	expression: Identifier | PropertyAccessExpression;
+	expression: Identifier | PropertyAccessExpression | ArrayIndexExpression;
 	name: Identifier;
+}
+
+export interface ArrayIndexExpression extends NodeBase {
+	kind: ZrNodeKind.ArrayIndexExpression;
+	expression: Identifier | PropertyAccessExpression | ArrayIndexExpression;
+	index: NumberLiteral;
 }
 
 export interface CommandName extends NodeBase {
@@ -118,7 +125,8 @@ export type ExpressionStatement =
 	| CommandStatement
 	| VariableStatement
 	| ArrayLiteral
-	| PropertyAccessExpression;
+	| PropertyAccessExpression
+	| ArrayIndexExpression;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {

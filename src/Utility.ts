@@ -141,6 +141,10 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "PropertyAccessExpression", "{");
 			prettyPrintNodes([node.expression, node.name], prefix + "\t");
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.ArrayIndexExpression)) {
+			print(prefix, "ArrayIndexExpression", "{");
+			prettyPrintNodes([node.expression, node.index], prefix + "\t");
+			print(prefix, "}");
 		} else {
 			print(prefix, getNodeKindName(node));
 		}

@@ -2,6 +2,7 @@ import { AstCommandDefinitions } from "Definitions/Definitions";
 import ZrLexer from "Lexer";
 import { ZrNodeKind, isNode } from "Nodes";
 import {
+	createArrayIndexExpression,
 	createArrayLiteral,
 	createBinaryExpression,
 	createBooleanNode,
@@ -21,6 +22,7 @@ import {
 } from "Nodes/Create";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
+	ArrayIndexExpression,
 	ExpressionStatement,
 	Identifier,
 	Node,
@@ -231,9 +233,13 @@ export default class ZrParser {
 		if (isToken(token, ZrTokenKind.Identifier)) {
 			return createIdentifier(token.value);
 		} else if (isToken(token, ZrTokenKind.PropertyAccess)) {
-			let expr: Identifier | PropertyAccessExpression = createIdentifier(token.value);
+			let expr: Identifier | PropertyAccessExpression | ArrayIndexExpression = createIdentifier(token.value);
 			for (const name of token.properties) {
-				expr = createPropertyAccessExpression(expr, createIdentifier(name));
+				if (name.match("%d+")[0]) {
+					expr = createArrayIndexExpression(expr, createNumberNode(tonumber(name)!));
+				} else {
+					expr = createPropertyAccessExpression(expr, createIdentifier(name));
+				}
 			}
 			return expr;
 		} else if (isToken(token, ZrTokenKind.Number)) {

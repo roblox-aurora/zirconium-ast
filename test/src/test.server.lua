@@ -14,7 +14,7 @@ local stream = ZrTextStream.new([[
     command [ "Hello there" 3.5 ] hello there
 
     command "Hello $there!"
-    command "Hello $interpolated.inner!"
+    command "Hello $interpolated.inner!" $value.0
 ]])
 local lexer = ZrLexer.new(stream)
 
