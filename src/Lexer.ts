@@ -305,7 +305,7 @@ export default class ZrLexer {
 			return identity<EndOfStatementToken>({
 				kind: ZrTokenKind.EndOfStatement,
 				startPos,
-				endPos: startPos + 1,
+				endPos: startPos,
 				value: this.stream.next(),
 			});
 		}
@@ -314,7 +314,7 @@ export default class ZrLexer {
 			return identity<SpecialToken>({
 				kind: ZrTokenKind.Special,
 				startPos,
-				endPos: startPos + 1,
+				endPos: startPos,
 				value: this.stream.next(),
 			});
 		}

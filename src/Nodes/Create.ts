@@ -25,6 +25,8 @@ import {
 	ArrayLiteral,
 	PropertyAccessExpression,
 	ArrayIndexExpression,
+	SourceBlock,
+	Statement,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -103,6 +105,14 @@ export function flattenInterpolatedString(
 		}
 	}
 	return { text, kind: ZrNodeKind.String, flags: 0 };
+}
+
+export function createBlock(statements: Statement[]) {
+	return identity<SourceBlock>({
+		kind: ZrNodeKind.Block,
+		statements,
+		flags: 0,
+	});
 }
 
 export function createCommandStatement(command: CommandName, children: Node[], startPos?: number, endPos?: number) {

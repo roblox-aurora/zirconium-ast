@@ -145,6 +145,22 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "ArrayIndexExpression", "{");
 			prettyPrintNodes([node.expression, node.index], prefix + "\t");
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.Block)) {
+			print(prefix, "Block", "{");
+			prettyPrintNodes(node.statements, prefix + "\t");
+			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.IfStatement)) {
+			print(prefix, "IfStatement", "{");
+			if (node.condition) {
+				prettyPrintNodes([node.condition], prefix + "\t");
+			}
+			if (node.thenStatement) {
+				prettyPrintNodes([node.thenStatement], prefix + "\t");
+			}
+			if (node.elseStatement) {
+				prettyPrintNodes([node.elseStatement], prefix + "\t");
+			}
+			print(prefix, "}");
 		} else {
 			print(prefix, getNodeKindName(node));
 		}

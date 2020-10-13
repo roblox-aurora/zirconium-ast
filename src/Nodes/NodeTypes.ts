@@ -4,7 +4,7 @@ import { ASSIGNABLE } from "./Guards";
 export interface NodeTypes {
 	[ZrNodeKind.CommandStatement]: CommandStatement;
 	[ZrNodeKind.IfStatement]: IfStatement;
-	[ZrNodeKind.Block]: Block;
+	[ZrNodeKind.Block]: SourceBlock;
 	[ZrNodeKind.CommandName]: CommandName;
 	[ZrNodeKind.String]: StringLiteral;
 	[ZrNodeKind.OptionKey]: Option;
@@ -109,7 +109,7 @@ export interface StringLiteral extends NodeBase {
 	text: string;
 }
 
-export interface Block extends NodeBase {
+export interface SourceBlock extends NodeBase {
 	kind: ZrNodeKind.Block;
 	statements: (CommandStatement | VariableStatement)[];
 }
@@ -132,8 +132,8 @@ export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {
 	kind: ZrNodeKind.IfStatement;
 	condition: ExpressionStatement | undefined;
-	thenStatement: Block | Statement | undefined;
-	elseStatement: Block | Statement | undefined;
+	thenStatement: SourceBlock | Statement | undefined;
+	elseStatement: SourceBlock | Statement | undefined;
 }
 
 export interface BooleanLiteral extends NodeBase {
