@@ -145,6 +145,14 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "ArrayIndexExpression", "{");
 			prettyPrintNodes([node.expression, node.index], prefix + "\t");
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.PropertyAssignment)) {
+			print(prefix, "PropertyAssignment", "{");
+			prettyPrintNodes([node.name, node.initializer], prefix + "\t");
+			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.ObjectLiteralExpression)) {
+			print(prefix, "ObjectLiteralExpression", "{");
+			prettyPrintNodes(node.values, prefix + "\t");
+			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.Block)) {
 			print(prefix, "Block", "{");
 			prettyPrintNodes(node.statements, prefix + "\t");

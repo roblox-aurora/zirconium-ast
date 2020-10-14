@@ -34,25 +34,32 @@ export enum ZrNodeKind {
 	/** `[export] $x = <value>` */
 	VariableStatement,
 	Invalid,
-	/** @todo `if (<expression>)` */
+	/** `if (<expression>)` */
 	IfStatement,
-	/** @todo `[<value>, <value>, ...]` */
+	/** `[<value>, <value>, ...]` */
 	ArrayLiteralExpression,
-	/** @todo `$var[0]` */
+	/** `$var[0]` */
 	ArrayIndexExpression,
-	/** @todo `$var.value` */
+	/** `$var.value` */
 	PropertyAccessExpression,
 
-	/** @todo `for (<var> in <expression>)` */
+	/** `for (<var> in <expression>)` */
 	ForInStatement,
 
 	ParenthesizedExpression,
 
+	/** `function <id>([...parameters]) { <statements> }` */
 	FunctionDeclaration,
 
+	/** `<id> [: <typeReference>]` */
 	Parameter,
 
 	TypeReference,
+
+	/** `{ a: <expression>, b: <expression>, ... }`  */
+	ObjectLiteralExpression,
+	/** `id: <expression>` */
+	PropertyAssignment,
 }
 
 export enum ZrTypeKeyword {

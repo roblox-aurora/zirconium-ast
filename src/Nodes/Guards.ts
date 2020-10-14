@@ -73,6 +73,7 @@ export const ASSIGNABLE = [
 	ZrNodeKind.ArrayLiteralExpression,
 	ZrNodeKind.PropertyAccessExpression,
 	ZrNodeKind.ArrayIndexExpression,
+	ZrNodeKind.ObjectLiteralExpression,
 ] as const;
 
 /**

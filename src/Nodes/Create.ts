@@ -32,6 +32,8 @@ import {
 	Parameter,
 	TypeReference,
 	ForInStatement,
+	ObjectLiteral,
+	PropertyAssignment,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -48,6 +50,26 @@ export function createInterpolatedString(
 export function createArrayLiteral(values: ArrayLiteral["values"]) {
 	return identity<ArrayLiteral>({
 		kind: ZrNodeKind.ArrayLiteralExpression,
+		flags: 0,
+		values,
+	});
+}
+
+export function createPropertyAssignment(
+	name: PropertyAssignment["name"],
+	initializer: PropertyAssignment["initializer"],
+) {
+	return identity<PropertyAssignment>({
+		kind: ZrNodeKind.PropertyAssignment,
+		flags: 0,
+		name,
+		initializer,
+	});
+}
+
+export function createObjectLiteral(values: ObjectLiteral["values"]) {
+	return identity<ObjectLiteral>({
+		kind: ZrNodeKind.ObjectLiteralExpression,
 		flags: 0,
 		values,
 	});

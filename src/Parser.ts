@@ -17,10 +17,12 @@ import {
 	createInterpolatedString,
 	createKeywordTypeNode,
 	createNumberNode,
+	createObjectLiteral,
 	createOperator,
 	createOptionKey,
 	createParameter,
 	createPropertyAccessExpression,
+	createPropertyAssignment,
 	createStringNode,
 	createTypeReference,
 	createVariableDeclaration,
@@ -36,6 +38,7 @@ import {
 	Node,
 	Parameter,
 	PropertyAccessExpression,
+	PropertyAssignment,
 	SourceBlock,
 	Statement,
 	StringLiteral,
@@ -442,8 +445,14 @@ export default class ZrParser {
 		return createInterpolatedString(...resulting);
 	}
 
-	private parseArrayExpression(start = "[", stop = "]", separator = ",", strict = this.strict) {
-		const values = new Array<Node>();
+	private parseListExpression<K extends Node = Node>(
+		start: string,
+		stop: string,
+		next: () => K,
+		separator = ",",
+		strict = this.strict,
+	): K[] {
+		const values = new Array<K>();
 		let index = 0;
 
 		this.skip(ZrTokenKind.Special, start);
@@ -460,13 +469,12 @@ export default class ZrParser {
 			}
 
 			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || strict)) {
-				print("index", index);
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
 			this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
-			values.push(this.parseNextExpressionStatement());
+			values.push(next());
 
 			index++;
 		}
@@ -477,6 +485,27 @@ export default class ZrParser {
 		this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 		this.skip(ZrTokenKind.Special, stop);
 
+		return values;
+	}
+
+	private parseObjectPropertyAssignment(): PropertyAssignment {
+		if (this.lexer.isNextOfAnyKind(ZrTokenKind.Identifier, ZrTokenKind.String)) {
+			const id = this.lexer.next() as StringToken;
+			this.skip(ZrTokenKind.Special, ":"); // Expects ':'
+			const expression = this.parseNextExpressionStatement();
+			return createPropertyAssignment(createIdentifier(id.value), expression);
+		} else {
+			this.parserError("Expected Identifier", ZrParserErrorCode.IdentifierExpected, this.lexer.peek());
+		}
+	}
+
+	private parseObjectExpression() {
+		const values = this.parseListExpression("{", "}", () => this.parseObjectPropertyAssignment());
+		return createObjectLiteral(values);
+	}
+
+	private parseArrayExpression() {
+		const values = this.parseListExpression("[", "]", () => this.parseNextExpressionStatement());
 		return createArrayLiteral(values);
 	}
 
@@ -501,11 +530,7 @@ export default class ZrParser {
 
 		if (this.is(ZrTokenKind.Special, "{")) {
 			if (this.isAssignmentExpression) {
-				this.parserError(
-					"Objects are not yet implemented.",
-					ZrParserErrorCode.NotImplemented,
-					this.lexer.peek(),
-				);
+				return this.parseObjectExpression();
 			} else {
 				return this.parseBlock();
 			}

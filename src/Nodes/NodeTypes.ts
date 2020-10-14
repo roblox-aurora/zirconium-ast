@@ -31,6 +31,8 @@ export interface NodeTypes {
 	[ZrNodeKind.Parameter]: Parameter;
 	[ZrNodeKind.TypeReference]: TypeReference;
 	[ZrNodeKind.ForInStatement]: ForInStatement;
+	[ZrNodeKind.ObjectLiteralExpression]: ObjectLiteral;
+	[ZrNodeKind.PropertyAssignment]: PropertyAssignment;
 }
 
 export interface NodeBase {
@@ -102,6 +104,17 @@ export interface ArrayLiteral extends NodeBase {
 	values: Node[];
 }
 
+export interface PropertyAssignment extends NodeBase {
+	kind: ZrNodeKind.PropertyAssignment;
+	name: Identifier;
+	initializer: ExpressionStatement;
+}
+
+export interface ObjectLiteral extends NodeBase {
+	kind: ZrNodeKind.ObjectLiteralExpression;
+	values: PropertyAssignment[];
+}
+
 export interface InvalidNode extends NodeBase {
 	kind: ZrNodeKind.Invalid;
 	expression: Node;
@@ -167,7 +180,8 @@ export type ExpressionStatement =
 	| Option
 	| ParenthesizedExpression
 	| FunctionDeclaration
-	| ForInStatement;
+	| ForInStatement
+	| ObjectLiteral;
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {
