@@ -105,20 +105,22 @@ export interface ParserWarning {
 
 export default class ZrParser {
 	private preventCommandParsing = false;
+	private ignoreWhitespace = false;
 	private strict = false;
 	private errors = new Array<ParserError>();
 	private warnings = new Array<ParserWarning>();
 
 	public constructor(private lexer: ZrLexer) {}
 
-	private parserError(message: string, code: ZrParserErrorCode): never {
+	private parserError(message: string, code: ZrParserErrorCode, token?: Token): never {
 		this.errors.push(
 			identity<ParserError>({
 				message,
 				code,
+				token,
 			}),
 		);
-		this.throwParserError(message);
+		this.throwParserError(token ? `[${token.startPos}:${token.endPos}] ${message}` : message);
 	}
 
 	private parserWarning(message: string, code: ZrParserWarningCode) {
@@ -164,11 +166,24 @@ export default class ZrParser {
 	/**
 	 * Skips a token of a specified kind if it's the next
 	 */
-	private skip(kind: ZrTokenKind, value: string | number | boolean) {
+	private skip(kind: ZrTokenKind, value: string | number | boolean, message?: string) {
 		if (this.is(kind, value)) {
 			return this.lexer.next();
 		} else {
-			this.parserError("Unexpected '" + kind + "'", ZrParserErrorCode.Unexpected);
+			const node = this.lexer.peek();
+			this.parserError(message ?? "Expected '" + value + "'", ZrParserErrorCode.Unexpected, node);
+		}
+	}
+
+	/**
+	 * Skips token if it exists.
+	 */
+	private skipIf(kind: ZrTokenKind, value: string | number | boolean) {
+		if (this.is(kind, value)) {
+			this.lexer.next();
+			return true;
+		} else {
+			return false;
 		}
 	}
 
@@ -420,28 +435,39 @@ export default class ZrParser {
 		return createInterpolatedString(...resulting);
 	}
 
-	private parseArrayExpression(start = "[", stop = "]", separator = ",") {
+	private parseArrayExpression(start = "[", stop = "]", separator = ",", strict = this.strict) {
 		const values = new Array<Node>();
 		let index = 0;
 
 		this.skip(ZrTokenKind.Special, start);
 		this.preventCommandParsing = true;
+		this.ignoreWhitespace = true;
 
 		while (this.lexer.hasNext()) {
 			if (this.is(ZrTokenKind.Special, stop)) {
 				break;
 			}
 
-			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || this.strict)) {
+			if (this.skipIf(ZrTokenKind.EndOfStatement, "\n")) {
+				continue;
+			}
+
+			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || strict)) {
+				print("index", index);
 				this.skip(ZrTokenKind.Special, separator);
 			}
+
+			this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
 			values.push(this.parseNextExpressionStatement());
 
 			index++;
 		}
 
+		this.ignoreWhitespace = false;
 		this.preventCommandParsing = false;
+
+		this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 		this.skip(ZrTokenKind.Special, stop);
 
 		return createArrayLiteral(values);
