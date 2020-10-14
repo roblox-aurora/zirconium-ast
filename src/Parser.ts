@@ -492,7 +492,11 @@ export default class ZrParser {
 		if (this.lexer.isNextOfAnyKind(ZrTokenKind.Identifier, ZrTokenKind.String)) {
 			const id = this.lexer.next() as StringToken;
 			this.skip(ZrTokenKind.Special, ":"); // Expects ':'
+
+			const preventCommandParsing = this.preventCommandParsing;
+			this.preventCommandParsing = false;
 			const expression = this.parseNextExpressionStatement();
+			this.preventCommandParsing = preventCommandParsing;
 			return createPropertyAssignment(createIdentifier(id.value), expression);
 		} else {
 			this.parserError("Expected Identifier", ZrParserErrorCode.IdentifierExpected, this.lexer.peek());
