@@ -390,7 +390,7 @@ export default class ZrParser {
 		let argumentIndex = 0;
 		while (
 			this.lexer.hasNext() &&
-			!this.isNextEndOfStatement() &&
+			(!this.isNextEndOfStatement() || isStrictFunctionCall) &&
 			!this.isOperatorToken() &&
 			!this.isEndBracketOrBlockToken()
 		) {
@@ -398,9 +398,15 @@ export default class ZrParser {
 				break;
 			}
 
+			if (isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n")) {
+				continue;
+			}
+
 			if (isStrictFunctionCall && argumentIndex > 0) {
 				this.skip(ZrTokenKind.Special, ",");
 			}
+
+			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
 			this.preventCommandParsing = true;
 			nodes.push(this.parseNextExpression());
