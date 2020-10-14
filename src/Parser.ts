@@ -398,7 +398,8 @@ export default class ZrParser {
 				break;
 			}
 
-			if (isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n")) {
+			const isEscaped = this.is(ZrTokenKind.Special, "\\") && this.skip(ZrTokenKind.Special, "\\");
+			if ((isStrictFunctionCall || isEscaped) && this.skipIf(ZrTokenKind.EndOfStatement, "\n")) {
 				continue;
 			}
 
