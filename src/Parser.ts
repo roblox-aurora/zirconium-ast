@@ -73,13 +73,20 @@ interface ZrParserOptions {
 }
 
 export const enum ZrParserErrorCode {
-	Unexpected = 1000,
-	UnexpectedWord = 1001,
-	InvalidVariableAssignment = 1002,
+	Unexpected = 1001,
+	UnexpectedWord,
+	InvalidVariableAssignment,
 	IdentifierExpected,
 	ExpectedToken,
 	NotImplemented,
 	ExpressionExpected,
+}
+
+export const enum ZrParserWarningCode {
+	/**
+	 * Function names do not require $ prefix.
+	 */
+	FunctionIdWithPrefix = 1,
 }
 
 export interface ParserError {
@@ -89,10 +96,18 @@ export interface ParserError {
 	token?: Token;
 }
 
+export interface ParserWarning {
+	message: string;
+	code: ZrParserWarningCode;
+	node?: Node;
+	token?: Token;
+}
+
 export default class ZrParser {
 	private preventCommandParsing = false;
 	private strict = false;
 	private errors = new Array<ParserError>();
+	private warnings = new Array<ParserWarning>();
 
 	public constructor(private lexer: ZrLexer) {}
 
@@ -104,6 +119,12 @@ export default class ZrParser {
 			}),
 		);
 		this.throwParserError(message);
+	}
+
+	private parserWarning(message: string, code: ZrParserWarningCode) {
+		this.warnings.push(
+			identity<ParserWarning>({ message, code }),
+		);
 	}
 
 	private parserNodeError(message: string, code: ZrParserErrorCode, node?: Node): never {
@@ -233,7 +254,7 @@ export default class ZrParser {
 
 	private parseFor() {
 		this.skip(ZrTokenKind.Keyword, "for");
-		if (this.lexer.isNextKind(ZrTokenKind.Identifier)) {
+		if (this.lexer.isNextOfKind(ZrTokenKind.Identifier)) {
 			const id = this.lexer.next() as IdentifierToken;
 
 			if (this.is(ZrTokenKind.Keyword, "in")) {
@@ -247,7 +268,7 @@ export default class ZrParser {
 						createIdentifier(targetId.value),
 						this.parseBlockOrInlineStatement(),
 					);
-				} else if (!this.lexer.isNextKind(ZrTokenKind.EndOfStatement)) {
+				} else if (!this.lexer.isNextOfKind(ZrTokenKind.EndOfStatement)) {
 					const expression = this.mutateExpressionStatement(this.parseNextExpression());
 					if (isNode(expression, ZrNodeKind.CommandStatement)) {
 						return createForInStatement(
@@ -278,8 +299,8 @@ export default class ZrParser {
 	private parseFunction() {
 		this.skip(ZrTokenKind.Keyword, "function");
 
-		if (this.lexer.isNextKind(ZrTokenKind.String)) {
-			const id = this.lexer.next() as StringToken;
+		if (this.lexer.isNextOfAnyKind(ZrTokenKind.String, ZrTokenKind.Identifier)) {
+			const id = this.lexer.next() as StringToken | IdentifierToken;
 			const idNode = createIdentifier(id.value);
 
 			const paramList = this.parseParameters();
@@ -329,7 +350,7 @@ export default class ZrParser {
 	}
 
 	private isOperatorToken() {
-		return this.lexer.isNextKind(ZrTokenKind.Operator);
+		return this.lexer.isNextOfKind(ZrTokenKind.Operator);
 	}
 
 	private isEndBracketOrBlockToken() {

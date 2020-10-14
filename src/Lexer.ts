@@ -130,7 +130,6 @@ export default class ZrLexer {
 	 */
 	private readComment() {
 		const result = this.readWhile(this.isNotNewline);
-		this.stream.next(); // nom the newline
 		return result;
 	}
 
@@ -346,10 +345,18 @@ export default class ZrLexer {
 		return this.readLiteralString();
 	}
 
-	public isNextKind(kind: ZrTokenKind) {
+	public isNextOfKind(kind: ZrTokenKind) {
 		return this.peek()?.kind === kind;
 	}
 
+	public isNextOfAnyKind(...kind: ZrTokenKind[]) {
+		for (const k of kind) {
+			if (this.isNextOfKind(k)) {
+				return true;
+			}
+		}
+		return false;
+	}
 	private currentToken: Token | undefined;
 	public peek() {
 		this.currentToken = this.currentToken ?? this.readNext();
