@@ -500,7 +500,15 @@ export default class ZrParser {
 		}
 
 		if (this.is(ZrTokenKind.Special, "{")) {
-			return this.parseBlock();
+			if (this.isAssignmentExpression) {
+				this.parserError(
+					"Objects are not yet implemented.",
+					ZrParserErrorCode.NotImplemented,
+					this.lexer.peek(),
+				);
+			} else {
+				return this.parseBlock();
+			}
 		}
 
 		if (this.is(ZrTokenKind.Keyword, "if")) {
@@ -559,6 +567,7 @@ export default class ZrParser {
 		);
 	}
 
+	private isAssignmentExpression = false;
 	/**
 	 * Mutates expression statements if required
 	 *
@@ -572,7 +581,9 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=" && isNode(left, ZrNodeKind.Identifier)) {
+					this.isAssignmentExpression = true;
 					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
+					this.isAssignmentExpression = false;
 					if (isAssignableExpression(right)) {
 						// isAssignment
 						const statement = createVariableStatement(createVariableDeclaration(left, right));
