@@ -408,7 +408,7 @@ export default class ZrParser {
 
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
-			this.preventCommandParsing = true;
+			this.preventCommandParsing = !this.strict;
 			nodes.push(this.parseNextExpression());
 			this.preventCommandParsing = false;
 			argumentIndex++;
