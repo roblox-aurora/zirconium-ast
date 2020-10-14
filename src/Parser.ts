@@ -500,7 +500,7 @@ export default class ZrParser {
 	}
 
 	private parseObjectExpression() {
-		const values = this.parseListExpression("{", "}", () => this.parseObjectPropertyAssignment());
+		const values = this.parseListExpression("{", "}", () => this.parseObjectPropertyAssignment(), ",", true);
 		return createObjectLiteral(values);
 	}
 
