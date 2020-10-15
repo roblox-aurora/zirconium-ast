@@ -436,7 +436,13 @@ export default class CommandAstParser {
 					const nextNode = createCommandStatement(nameNode, this.childNodes, startPos, endPos);
 					nextNode.rawText = this.source.sub(startPos, endPos);
 
-					const expression = createBinaryExpression(prevNode, lastNode, nextNode, prevNode.startPos, endPos);
+					const expression = createBinaryExpression(
+						prevNode,
+						lastNode.operator,
+						nextNode,
+						prevNode.startPos,
+						endPos,
+					);
 					// eslint-disable-next-line roblox-ts/lua-truthiness
 					expression.rawText = this.source.sub(prevNode.startPos ?? 0, endPos);
 
@@ -941,7 +947,7 @@ export default class CommandAstParser {
 		} else if (isNode(node, CmdSyntaxKind.OptionKey)) {
 			return node.flag.size() > 1 ? `--${node.flag}` : `-${node.flag}`;
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
-			return this.render(node.left) + " " + this.render(node.operator) + " " + this.render(node.right);
+			return this.render(node.left) + " " + node.operator + " " + this.render(node.right);
 		} else if (isNode(node, CmdSyntaxKind.Identifier)) {
 			return `$${node.name}`;
 		} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {

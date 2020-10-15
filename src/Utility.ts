@@ -82,12 +82,19 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, CmdSyntaxKind[node.kind], node.operator);
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 			if (verbose) {
-				print(prefix, CmdSyntaxKind[node.kind], `'${node.rawText}'`, `[${node.startPos}:${node.endPos}]`, "{");
+				print(
+					prefix,
+					CmdSyntaxKind[node.kind],
+					node.operator,
+					`'${node.rawText}'`,
+					`[${node.startPos}:${node.endPos}]`,
+					"{",
+				);
 			} else {
-				print(prefix, CmdSyntaxKind[node.kind], "{");
+				print(prefix, CmdSyntaxKind[node.kind], node.operator, "{");
 			}
 
-			prettyPrintNodes([node.left, node.operator, node.right], prefix + "\t", verbose);
+			prettyPrintNodes([node.left, node.right], prefix + "\t", verbose);
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.InterpolatedString)) {
 			if (verbose) {

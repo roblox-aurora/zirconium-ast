@@ -94,7 +94,7 @@ export interface InterpolatedStringExpression extends NodeBase {
 export interface BinaryExpression extends NodeBase {
 	kind: ZrNodeKind.BinaryExpression;
 	left: Node;
-	operator: OperatorToken;
+	operator: string;
 	right: Node;
 	children: Node[];
 }

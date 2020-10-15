@@ -9,44 +9,12 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local str = [[
-    # Normal command
-    cmd hello "Hello World" 10 true
-    cmd("hello", "Hello, World!", 10, true)
-
-    # Array
-    cmd [ "Hello, World!" 10 true ]
-    cmd([ "Hello, World!", 10, true ])
-
-    # Options
-    cmd --option 10 "HIIII"
-
-    # Assignment
-    $aNumber = 10
-    $aBoolean = true
-    $aString = "Hello, World!"
-
-    # Access
-    $H = $aString.0
-    $name = $player.Name
-
-    # If/Else
-    if $value {
-        do_the_thing
-    }
-
-    if $value {
-        do_the_thing
-    } else {
-        do_the_other_thing
-    }
-
-    if $value {
-        do_the_thing
-    } else if $value2 {
-        do_the_other_thing
-    } else {
-        do_the_other_other_thing
-    }
+    x = 10
+    x = [
+        "Hello",
+        "Moto"
+    ]
+    test
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)

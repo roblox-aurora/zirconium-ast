@@ -335,7 +335,7 @@ export function createInvalidNode(
 
 export function createBinaryExpression(
 	left: Node,
-	op: OperatorToken,
+	op: string,
 	right: Node,
 	startPos?: number,
 	endPos?: number,

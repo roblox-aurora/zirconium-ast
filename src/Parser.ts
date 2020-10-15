@@ -644,24 +644,10 @@ export default class ZrParser {
 						this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
 					}
 					return this.parseVariableDeclaration(left);
-					// this.isAssignmentExpression = true;
-					// const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
-					// this.isAssignmentExpression = false;
-					// if (isAssignableExpression(right)) {
-					// 	// isAssignment
-					// 	const statement = createVariableStatement(createVariableDeclaration(left, right));
-					// 	return statement;
-					// } else {
-					// 	this.parserNodeError(
-					// 		`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
-					// 		ZrParserErrorCode.InvalidVariableAssignment,
-					// 		right,
-					// 	);
-					// }
 				} else {
 					return createBinaryExpression(
 						left,
-						createOperator(token.value),
+						token.value,
 						this.mutateExpressionStatement(this.parseNextExpressionStatement()),
 					);
 				}
