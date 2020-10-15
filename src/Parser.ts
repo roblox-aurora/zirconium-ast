@@ -28,7 +28,7 @@ import {
 	createVariableDeclaration,
 	createVariableStatement,
 } from "Nodes/Create";
-import { ZrTypeKeyword } from "Nodes/Enum";
+import { ZrNodeFlag, ZrTypeKeyword } from "Nodes/Enum";
 import { getFriendlyName } from "Nodes/Functions";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
@@ -413,7 +413,7 @@ export default class ZrParser {
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
 			this.preventCommandParsing = !this.strict;
-			nodes.push(this.parseNextExpression());
+			nodes.push(this.parseNextExpressionStatement());
 			this.preventCommandParsing = false;
 			argumentIndex++;
 		}
@@ -561,7 +561,12 @@ export default class ZrParser {
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
-				return this.parseCommandStatement(token);
+
+				if (this.is(ZrTokenKind.Operator, "=")) {
+					return this.mutateExpressionStatement(createIdentifier(token.value));
+				} else {
+					return this.parseCommandStatement(token);
+				}
 			}
 		}
 
@@ -596,6 +601,31 @@ export default class ZrParser {
 		);
 	}
 
+	private parseVariableDeclaration(left: Identifier, flags: ZrNodeFlag = 0) {
+		this.skipIf(ZrTokenKind.Operator, "=");
+		this.isAssignmentExpression = true;
+		const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
+		this.isAssignmentExpression = false;
+
+		if (!this.is(ZrTokenKind.EndOfStatement)) {
+			this.parserError("';' expected.", ZrParserErrorCode.Unexpected, this.lexer.peek());
+		}
+
+		if (isAssignableExpression(right)) {
+			// isAssignment
+			const decl = createVariableDeclaration(left, right);
+			decl.flags = flags;
+			const statement = createVariableStatement(decl);
+			return statement;
+		} else {
+			this.parserNodeError(
+				`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
+				ZrParserErrorCode.InvalidVariableAssignment,
+				right,
+			);
+		}
+	}
+
 	private isAssignmentExpression = false;
 	/**
 	 * Mutates expression statements if required
@@ -609,21 +639,25 @@ export default class ZrParser {
 			if (otherPrecedence > precedence) {
 				this.lexer.next();
 
-				if (token.value === "=" && isNode(left, ZrNodeKind.Identifier)) {
-					this.isAssignmentExpression = true;
-					const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
-					this.isAssignmentExpression = false;
-					if (isAssignableExpression(right)) {
-						// isAssignment
-						const statement = createVariableStatement(createVariableDeclaration(left, right));
-						return statement;
-					} else {
-						this.parserNodeError(
-							`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
-							ZrParserErrorCode.InvalidVariableAssignment,
-							right,
-						);
+				if (token.value === "=") {
+					if (!isNode(left, ZrNodeKind.Identifier)) {
+						this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
 					}
+					return this.parseVariableDeclaration(left);
+					// this.isAssignmentExpression = true;
+					// const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
+					// this.isAssignmentExpression = false;
+					// if (isAssignableExpression(right)) {
+					// 	// isAssignment
+					// 	const statement = createVariableStatement(createVariableDeclaration(left, right));
+					// 	return statement;
+					// } else {
+					// 	this.parserNodeError(
+					// 		`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
+					// 		ZrParserErrorCode.InvalidVariableAssignment,
+					// 		right,
+					// 	);
+					// }
 				} else {
 					return createBinaryExpression(
 						left,

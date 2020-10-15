@@ -1,4 +1,4 @@
-import type { ZrNodeKind, NodeFlag } from "./Enum";
+import type { ZrNodeKind, ZrNodeFlag } from "./Enum";
 import { ASSIGNABLE } from "./Guards";
 
 export interface NodeTypes {
@@ -41,7 +41,7 @@ export interface NodeBase {
 	startPos?: number;
 	rawText?: string;
 	endPos?: number;
-	flags: NodeFlag;
+	flags: ZrNodeFlag;
 }
 
 type OP = "&&" | "|" | "=";

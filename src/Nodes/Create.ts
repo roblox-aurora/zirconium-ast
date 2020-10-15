@@ -1,4 +1,4 @@
-import { ZrNodeKind, NodeFlag, ZrTypeKeyword } from "./Enum";
+import { ZrNodeKind, ZrNodeFlag, ZrTypeKeyword } from "./Enum";
 import {
 	InterpolatedStringExpression,
 	StringLiteral,
@@ -325,7 +325,7 @@ export function createInvalidNode(
 		kind: ZrNodeKind.Invalid,
 		expression,
 		message,
-		flags: NodeFlag.NodeHasError,
+		flags: ZrNodeFlag.NodeHasError,
 		// eslint-disable-next-line roblox-ts/lua-truthiness
 		startPos: startPos ?? expression.startPos,
 		// eslint-disable-next-line roblox-ts/lua-truthiness

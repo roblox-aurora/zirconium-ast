@@ -17,14 +17,14 @@ import {
 	BooleanLiteral,
 	BinaryExpression,
 } from "./NodeTypes";
-import { NodeFlag, ZrNodeKind } from "./Enum";
+import { ZrNodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
 
 export function isNode<K extends keyof NodeTypes>(node: Node, type: K): node is NodeTypes[K] {
 	return node !== undefined && node.kind === type;
 }
 
-export function hasNodeFlag<F extends NodeFlag>(node: Node, flag: F) {
+export function hasNodeFlag<F extends ZrNodeFlag>(node: Node, flag: F) {
 	return node.flags !== undefined && (node.flags & flag) !== 0;
 }
 
@@ -74,6 +74,7 @@ export const ASSIGNABLE = [
 	ZrNodeKind.PropertyAccessExpression,
 	ZrNodeKind.ArrayIndexExpression,
 	ZrNodeKind.ObjectLiteralExpression,
+	ZrNodeKind.CommandStatement,
 ] as const;
 
 /**

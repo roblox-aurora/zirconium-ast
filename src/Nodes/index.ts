@@ -1,4 +1,4 @@
-import { ZrNodeKind, NodeFlag } from "./Enum";
+import { ZrNodeKind, ZrNodeFlag } from "./Enum";
 import {
 	isNode,
 	isNodeIn,
@@ -13,7 +13,7 @@ import { getKindName, getPreviousNode, getNextNode, getNodeKindName } from "./Fu
 export {
 	ZrNodeKind as CmdSyntaxKind,
 	ZrNodeKind,
-	NodeFlag,
+	ZrNodeFlag as NodeFlag,
 	isNode,
 	isNodeIn,
 	getSiblingNode,

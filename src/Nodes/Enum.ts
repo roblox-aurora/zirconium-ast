@@ -68,7 +68,9 @@ export enum ZrTypeKeyword {
 
 export const CmdSyntaxKind = ZrNodeKind;
 
-export const enum NodeFlag {
+export const enum ZrNodeFlag {
 	None = 0,
+	Const = 1 << 0,
+	Let = 1 << 1,
 	NodeHasError = 1 << 16,
 }
