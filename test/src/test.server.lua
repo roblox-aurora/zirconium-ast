@@ -15,6 +15,11 @@ local str = [[
     if !$x && $y {
 
     }
+
+    !""
+
+    $x = 1.2
+    $y = !100.0
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)

@@ -41,7 +41,7 @@ export default class ZrLexer {
 
 	public constructor(private stream: ZrTextStream) {}
 
-	private isNumeric = (c: string) => c.match("[%d._]")[0] !== undefined;
+	private isNumeric = (c: string) => c.match("[%d]")[0] !== undefined;
 	private isSpecial = (c: string) => ZrLexer.SPECIAL.includes(c as PunctuationTokens);
 	private isNotNewline = (c: string) => c !== "\n";
 	private isNotEndOfStatement = (c: string) => c !== "\n" && c !== ";";
@@ -187,7 +187,20 @@ export default class ZrLexer {
 
 	private readNumber() {
 		const startPos = this.stream.getPtr() + 1;
-		const number = this.readWhile(this.isNumeric);
+
+		let isDecimal = false;
+		const number = this.readWhile((c) => {
+			if (c === ".") {
+				if (isDecimal) {
+					return false;
+				}
+
+				isDecimal = true;
+				return true;
+			}
+
+			return this.isNumeric(c);
+		});
 		const endPos = this.stream.getPtr();
 		return identity<NumberToken>({
 			kind: ZrTokenKind.Number,
