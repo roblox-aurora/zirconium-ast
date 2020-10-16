@@ -9,12 +9,12 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local str = [[
-    x = 10
-    x = [
-        "Hello",
-        "Moto"
-    ]
-    test
+    $x = 0
+    $x += 10 + 10
+
+    if !$x && $y {
+
+    }
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)

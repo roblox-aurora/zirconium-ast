@@ -80,6 +80,22 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			}
 		} else if (isNode(node, CmdSyntaxKind.OperatorToken)) {
 			print(prefix, CmdSyntaxKind[node.kind], node.operator);
+		} else if (isNode(node, CmdSyntaxKind.UnaryExpression)) {
+			if (verbose) {
+				print(
+					prefix,
+					CmdSyntaxKind[node.kind],
+					node.operator,
+					`'${node.rawText}'`,
+					`[${node.startPos}:${node.endPos}]`,
+					"{",
+				);
+			} else {
+				print(prefix, CmdSyntaxKind[node.kind], node.operator, "{");
+			}
+
+			prettyPrintNodes([node.expression], prefix + "\t", verbose);
+			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.BinaryExpression)) {
 			if (verbose) {
 				print(

@@ -34,6 +34,7 @@ import {
 	ForInStatement,
 	ObjectLiteral,
 	PropertyAssignment,
+	UnaryExpression,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -353,4 +354,17 @@ export function createBinaryExpression(
 	left.parent = expression;
 	right.parent = expression;
 	return expression;
+}
+
+export function createUnaryExpression(op: string, expression: Node, startPos?: number, endPos?: number) {
+	const expr = identity<UnaryExpression>({
+		kind: ZrNodeKind.UnaryExpression,
+		expression,
+		operator: op,
+		flags: 0,
+		startPos: startPos,
+		endPos,
+	});
+	expr.parent = expression;
+	return expr;
 }

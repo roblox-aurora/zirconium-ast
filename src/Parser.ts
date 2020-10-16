@@ -25,6 +25,7 @@ import {
 	createPropertyAssignment,
 	createStringNode,
 	createTypeReference,
+	createUnaryExpression,
 	createVariableDeclaration,
 	createVariableStatement,
 } from "Nodes/Create";
@@ -43,33 +44,17 @@ import {
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
+import Grammar, { UnaryOperatorsTokens } from "Tokens/Grammar";
 import {
 	IdentifierToken,
 	InterpolatedStringToken,
 	isToken,
+	OperatorToken,
 	StringToken,
 	Token,
 	TokenTypes,
 	ZrTokenKind,
 } from "Tokens/Tokens";
-
-const OPERATOR_PRECEDENCE: Record<string, number> = {
-	"=": 1,
-	"|": 2,
-	"||": 2,
-	"&&": 3,
-	"<": 7,
-	">": 7,
-	">=": 7,
-	"<=": 7,
-	"==": 7,
-	"!=": 7,
-	//"+": 10,
-	//"-": 10,
-	//"*": 20,
-	//"/": 20,
-	//"%": 20,
-};
 
 interface ZrParserOptions {
 	commands: AstCommandDefinitions;
@@ -513,6 +498,12 @@ export default class ZrParser {
 		return createArrayLiteral(values);
 	}
 
+	private parseUnaryExpression() {
+		const token = this.lexer.next() as OperatorToken;
+		const rhs = this.mutateExpressionStatement(this.parseNextExpressionStatement());
+		return createUnaryExpression(token.value, rhs);
+	}
+
 	/**
 	 * Parses the next expression statement
 	 */
@@ -595,6 +586,13 @@ export default class ZrParser {
 			return createOptionKey(token.value);
 		}
 
+		if (
+			isToken(token, ZrTokenKind.Operator) &&
+			Grammar.UnaryOperators.includes(token.value as UnaryOperatorsTokens)
+		) {
+			return createUnaryExpression(token.value, this.parseNextExpressionStatement());
+		}
+
 		this.parserError(
 			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
 			ZrParserErrorCode.Unexpected,
@@ -635,7 +633,7 @@ export default class ZrParser {
 	private mutateExpressionStatement(left: ExpressionStatement, precedence = 0): ExpressionStatement {
 		const token = this.get(ZrTokenKind.Operator);
 		if (token) {
-			const otherPrecedence = OPERATOR_PRECEDENCE[token.value];
+			const otherPrecedence = Grammar.OperatorPrecedence[token.value];
 			if (otherPrecedence > precedence) {
 				this.lexer.next();
 
@@ -661,7 +659,8 @@ export default class ZrParser {
 	 * Parse the next expression
 	 */
 	private parseNextExpression() {
-		return this.mutateExpressionStatement(this.parseNextExpressionStatement());
+		const expr = this.parseNextExpressionStatement();
+		return this.mutateExpressionStatement(expr);
 	}
 
 	private isNextEndOfStatement() {

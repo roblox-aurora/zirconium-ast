@@ -33,6 +33,7 @@ export interface NodeTypes {
 	[ZrNodeKind.ForInStatement]: ForInStatement;
 	[ZrNodeKind.ObjectLiteralExpression]: ObjectLiteral;
 	[ZrNodeKind.PropertyAssignment]: PropertyAssignment;
+	[ZrNodeKind.UnaryExpression]: UnaryExpression;
 }
 
 export interface NodeBase {
@@ -89,6 +90,12 @@ export interface CommandSource extends NodeBase {
 export interface InterpolatedStringExpression extends NodeBase {
 	kind: ZrNodeKind.InterpolatedString;
 	values: Array<StringLiteral | Identifier>;
+}
+
+export interface UnaryExpression extends NodeBase {
+	kind: ZrNodeKind.UnaryExpression;
+	expression: Node;
+	operator: string;
 }
 
 export interface BinaryExpression extends NodeBase {
@@ -181,7 +188,9 @@ export type ExpressionStatement =
 	| ParenthesizedExpression
 	| FunctionDeclaration
 	| ForInStatement
-	| ObjectLiteral;
+	| ObjectLiteral
+	| UnaryExpression;
+
 export type Statement = CommandStatement | VariableStatement;
 export type AssignableExpression = NodeTypes[typeof ASSIGNABLE[number]];
 export interface IfStatement extends NodeBase {

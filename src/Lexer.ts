@@ -1,11 +1,11 @@
 import ZrTextStream from "TextStream";
+import Grammar, { BooleanLiteralTokens, EndOfStatementTokens, OperatorTokens, PunctuationTokens } from "Tokens/Grammar";
 import {
 	BooleanToken,
 	EndOfStatementToken,
 	IdentifierToken,
 	InterpolatedStringToken,
 	joinInterpolatedString,
-	KEYWORDS,
 	KeywordToken,
 	NumberToken,
 	OperatorToken,
@@ -34,18 +34,18 @@ export interface LexerOptions {
  * The lexer for Zirconium
  */
 export default class ZrLexer {
-	private static readonly OPERATORS = ["&", "|", "=", ">", "<", "-"];
-	private static readonly ENDOFSTATEMENT = [";", "\n"];
-	private static readonly SPECIAL = ["(", ")", ",", "{", "}", "[", "]", ".", ":", "\\"];
-	private static readonly BOOLEAN = ["true", "false"];
+	private static readonly OPERATORS = Grammar.Operators;
+	private static readonly ENDOFSTATEMENT = Grammar.EndOfStatement;
+	private static readonly SPECIAL = Grammar.Punctuation;
+	private static readonly BOOLEAN = Grammar.BooleanLiterals;
 
-	public constructor(private stream: ZrTextStream, private options: LexerOptions) {}
+	public constructor(private stream: ZrTextStream) {}
 
 	private isNumeric = (c: string) => c.match("[%d._]")[0] !== undefined;
-	private isSpecial = (c: string) => ZrLexer.SPECIAL.includes(c);
+	private isSpecial = (c: string) => ZrLexer.SPECIAL.includes(c as PunctuationTokens);
 	private isNotNewline = (c: string) => c !== "\n";
 	private isNotEndOfStatement = (c: string) => c !== "\n" && c !== ";";
-	private isKeyword = (c: string) => (KEYWORDS as readonly string[]).includes(c);
+	private isKeyword = (c: string) => (Grammar.Keywords as readonly string[]).includes(c);
 	private isWhitespace = (c: string) => c.match("%s")[0] !== undefined && c !== "\n";
 	private isId = (c: string) => c.match("[%w_]")[0] !== undefined;
 	private isOptionId = (c: string) => c.match("[%w_-]")[0] !== undefined;
@@ -55,28 +55,6 @@ export default class ZrLexer {
 	 */
 	public reset() {
 		this.stream.reset();
-	}
-
-	/**
-	 * Reads the text stream until the specified character is found or the end of stream
-	 */
-	private readUntil(character: string) {
-		let src = "";
-		let escaped = false;
-		this.stream.next(); // eat start character
-
-		while (this.stream.hasNext()) {
-			const char = this.stream.next();
-			if (escaped) {
-				escaped = false;
-			} else if (char === "\\") {
-				escaped = true;
-			} else if (char === character) {
-				break;
-			}
-			src += char;
-		}
-		return src;
 	}
 
 	/**
@@ -189,7 +167,7 @@ export default class ZrLexer {
 			});
 		}
 
-		if (ZrLexer.BOOLEAN.includes(literal)) {
+		if (ZrLexer.BOOLEAN.includes(literal as BooleanLiteralTokens)) {
 			return identity<BooleanToken>({
 				kind: ZrTokenKind.Boolean,
 				startPos,
@@ -315,16 +293,16 @@ export default class ZrLexer {
 			return this.readNumber();
 		}
 
-		if (ZrLexer.OPERATORS.includes(char)) {
+		if (ZrLexer.OPERATORS.includes(char as OperatorTokens)) {
 			return identity<OperatorToken>({
 				kind: ZrTokenKind.Operator,
 				startPos,
 				endPos: startPos + char.size(),
-				value: this.readWhile((c) => ZrLexer.OPERATORS.includes(c)),
+				value: this.readWhile((c) => ZrLexer.OPERATORS.includes(c as OperatorTokens)),
 			});
 		}
 
-		if (ZrLexer.ENDOFSTATEMENT.includes(char)) {
+		if (ZrLexer.ENDOFSTATEMENT.includes(char as EndOfStatementTokens)) {
 			return identity<EndOfStatementToken>({
 				kind: ZrTokenKind.EndOfStatement,
 				startPos,
@@ -333,7 +311,7 @@ export default class ZrLexer {
 			});
 		}
 
-		if (ZrLexer.SPECIAL.includes(char)) {
+		if (ZrLexer.SPECIAL.includes(char as PunctuationTokens)) {
 			return identity<SpecialToken>({
 				kind: ZrTokenKind.Special,
 				startPos,
@@ -358,7 +336,6 @@ export default class ZrLexer {
 		return false;
 	}
 
-	private previousToken: Token | undefined;
 	private currentToken: Token | undefined;
 	public peek() {
 		this.currentToken = this.currentToken ?? this.readNext();

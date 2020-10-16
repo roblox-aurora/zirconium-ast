@@ -60,6 +60,8 @@ export enum ZrNodeKind {
 	ObjectLiteralExpression,
 	/** `id: <expression>` */
 	PropertyAssignment,
+
+	UnaryExpression,
 }
 
 export enum ZrTypeKeyword {
