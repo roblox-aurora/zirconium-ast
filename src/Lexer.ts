@@ -2,6 +2,7 @@ import ZrTextStream from "TextStream";
 import Grammar, { BooleanLiteralTokens, EndOfStatementTokens, OperatorTokens, PunctuationTokens } from "Tokens/Grammar";
 import {
 	BooleanToken,
+	CommentToken,
 	EndOfStatementToken,
 	IdentifierToken,
 	InterpolatedStringToken,
@@ -14,6 +15,7 @@ import {
 	SpecialToken,
 	StringToken,
 	Token,
+	WhitespaceToken,
 	ZrTokenKind,
 } from "Tokens/Tokens";
 
@@ -27,8 +29,16 @@ const enum TokenCharacter {
 }
 
 export interface LexerOptions {
-	readonly dud?: never;
+	readonly ParseCommentsAsTokens: boolean;
+	readonly ParseWhitespaceAsTokens: boolean;
+	readonly CommandNames: string[];
 }
+
+const DEFAULTS = identity<LexerOptions>({
+	ParseCommentsAsTokens: false,
+	ParseWhitespaceAsTokens: false,
+	CommandNames: [],
+});
 
 /**
  * The lexer for Zirconium
@@ -38,8 +48,11 @@ export default class ZrLexer {
 	private static readonly ENDOFSTATEMENT = Grammar.EndOfStatement;
 	private static readonly SPECIAL = Grammar.Punctuation;
 	private static readonly BOOLEAN = Grammar.BooleanLiterals;
+	private options: LexerOptions;
 
-	public constructor(private stream: ZrTextStream) {}
+	public constructor(private stream: ZrTextStream, options?: Partial<LexerOptions>) {
+		this.options = { ...DEFAULTS, ...options };
+	}
 
 	private isNumeric = (c: string) => c.match("[%d]")[0] !== undefined;
 	private isSpecial = (c: string) => ZrLexer.SPECIAL.includes(c as PunctuationTokens);
@@ -264,8 +277,10 @@ export default class ZrLexer {
 	 * Gets the next token
 	 */
 	private readNext(): Token | undefined {
+		const { options } = this;
+
 		// skip whitespace
-		this.readWhile(this.isWhitespace);
+		if (!options.ParseWhitespaceAsTokens) this.readWhile(this.isWhitespace);
 		const startPos = this.stream.getPtr() + 1;
 
 		if (!this.stream.hasNext()) {
@@ -275,14 +290,27 @@ export default class ZrLexer {
 		// Get the next token
 		const char = this.stream.peek();
 
-		if (char === TokenCharacter.Hash) {
-			this.readComment();
-			return this.readNext();
+		if (options.ParseWhitespaceAsTokens && this.isWhitespace(char)) {
+			return identity<WhitespaceToken>({
+				kind: ZrTokenKind.Whitespace,
+				value: char,
+				startPos: startPos,
+				endPos: startPos,
+			});
 		}
 
-		// if (char === TokenCharacter.Dot) {
-		// 	return this.readDotToken();
-		// }
+		if (char === TokenCharacter.Hash) {
+			const value = this.readComment();
+			if (options.ParseCommentsAsTokens) {
+				return identity<CommentToken>({
+					kind: ZrTokenKind.Comment,
+					value,
+					startPos,
+					endPos: startPos + value.size(),
+				});
+			}
+			return this.readNext();
+		}
 
 		if (char === TokenCharacter.Dollar) {
 			return this.readVariableToken();

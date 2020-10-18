@@ -12,6 +12,7 @@ export const enum ZrTokenKind {
 	PropertyAccess = "Property",
 	ArrayIndex = "ArrayIndex",
 	EndOfStatement = "EndOfStatement",
+	Whitespace = "Whitespace",
 }
 
 export const KEYWORDS = ["if", "else", "for", "in", "function"];
@@ -30,12 +31,24 @@ export interface TokenTypes {
 	[ZrTokenKind.ArrayIndex]: ArrayIndexToken;
 	[ZrTokenKind.PropertyAccess]: PropertyAccessToken;
 	[ZrTokenKind.Option]: OptionToken;
+	[ZrTokenKind.Whitespace]: WhitespaceToken;
+	[ZrTokenKind.Comment]: CommentToken;
 }
 
 export interface TokenBase {
 	kind: ZrTokenKind;
 	startPos: number;
 	endPos: number;
+}
+
+export interface WhitespaceToken extends TokenBase {
+	kind: ZrTokenKind.Whitespace;
+	value: string;
+}
+
+export interface CommentToken extends TokenBase {
+	kind: ZrTokenKind.Comment;
+	value: string;
 }
 
 export interface OptionToken extends TokenBase {
