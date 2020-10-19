@@ -249,6 +249,7 @@ export interface PrefixExpression extends NodeBase {
 
 export interface Identifier extends NodeBase {
 	name: string;
+	prefix: string;
 }
 
 export interface EndOfStatement extends NodeBase {

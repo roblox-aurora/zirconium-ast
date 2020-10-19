@@ -19,6 +19,7 @@ import {
 	createNumberNode,
 	createObjectLiteral,
 	createOperator,
+	createOptionExpression,
 	createOptionKey,
 	createParameter,
 	createPropertyAccessExpression,
@@ -34,6 +35,7 @@ import { getFriendlyName } from "Nodes/Functions";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
+	AssignableExpression,
 	ExpressionStatement,
 	Identifier,
 	Node,
@@ -97,6 +99,7 @@ export default class ZrParser {
 	private strict = false;
 	private errors = new Array<ParserError>();
 	private warnings = new Array<ParserWarning>();
+	private functionCallScope = 0;
 
 	public constructor(private lexer: ZrLexer) {}
 
@@ -375,6 +378,8 @@ export default class ZrParser {
 			this.strict = true;
 		}
 
+		this.functionCallScope += 1;
+
 		let argumentIndex = 0;
 		while (
 			this.lexer.hasNext() &&
@@ -407,6 +412,8 @@ export default class ZrParser {
 			this.skip(ZrTokenKind.Special, ")");
 			this.strict = false;
 		}
+
+		this.functionCallScope -= 1;
 
 		return createCommandStatement(commandName, nodes);
 	}
@@ -504,6 +511,14 @@ export default class ZrParser {
 		return createUnaryExpression(token.value, rhs);
 	}
 
+	private parseStrictFunctionOption(option: string) {
+		this.skip(ZrTokenKind.Special, ":");
+		return createOptionExpression(
+			createOptionKey(option),
+			this.mutateExpressionStatement(this.parseNextExpressionStatement()) as AssignableExpression,
+		);
+	}
+
 	/**
 	 * Parses the next expression statement
 	 */
@@ -554,7 +569,9 @@ export default class ZrParser {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
 
 				if (this.is(ZrTokenKind.Operator, "=")) {
-					return this.mutateExpressionStatement(createIdentifier(token.value));
+					return this.mutateExpressionStatement(createIdentifier(token.value, ""));
+				} else if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":")) {
+					return this.parseStrictFunctionOption(token.value);
 				} else {
 					return this.parseCommandStatement(token);
 				}

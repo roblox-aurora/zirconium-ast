@@ -265,8 +265,8 @@ export function createCommandName(name: StringLiteral): CommandName {
 	};
 }
 
-export function createIdentifier(name: string): Identifier {
-	return { kind: ZrNodeKind.Identifier, name, flags: 0 };
+export function createIdentifier(name: string, prefix = "$"): Identifier {
+	return { kind: ZrNodeKind.Identifier, name, flags: 0, prefix };
 }
 
 export function createOptionKey(flag: string, endPos?: number): OptionKey {
