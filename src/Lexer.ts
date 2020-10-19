@@ -291,6 +291,7 @@ export default class ZrLexer {
 		const char = this.stream.peek();
 
 		if (options.ParseWhitespaceAsTokens && this.isWhitespace(char)) {
+			this.stream.next();
 			return identity<WhitespaceToken>({
 				kind: ZrTokenKind.Whitespace,
 				value: char,
