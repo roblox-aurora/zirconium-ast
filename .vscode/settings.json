@@ -4,5 +4,12 @@
 		"editor.formatOnSave": true
 	},
 	"eslint.run": "onType",
-	"eslint.format.enable": true
+	"eslint.format.enable": true,
+	"files.eol": "\n",
+	"Lua.workspace.rojoProjectFile": "test/",
+	"Lua.workspace.useGitIgnore": true,
+	"Lua.color.mode": "Semantic",
+	"Lua.diagnostics.ignore": [
+		"RuntimeLib"
+	]
 }

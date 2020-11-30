@@ -6,13 +6,23 @@
         "ServerScriptService": {
             "$className": "ServerScriptService",
             "Test": {
-                "$path": "src"
-            },
+                "$path": "src/server"
+            }
+        },
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
             "CommandLib": {
                 "$path": "../out",
                 "vendor": {
                     "$path": "../include"
                 }
+            }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "$path": "src/client"
             }
         }
     }

@@ -15,7 +15,7 @@ export const enum ZrTokenKind {
 	Whitespace = "Whitespace",
 }
 
-export const KEYWORDS = ["if", "else", "for", "in", "function"];
+export const KEYWORDS = ["if", "else", "for", "in", "function", "while", "const", "let"];
 export const TYPES = ["number", "string", "boolean"];
 
 export interface TokenTypes {
@@ -35,10 +35,19 @@ export interface TokenTypes {
 	[ZrTokenKind.Comment]: CommentToken;
 }
 
+export const enum ZrTokenFlag {
+	None = 0,
+	UnterminatedString = 1 << 0,
+	Interpolated = 1 << 1,
+	FunctionName = 1 << 2,
+	Label = 1 << 3,
+}
+
 export interface TokenBase {
 	kind: ZrTokenKind;
 	startPos: number;
 	endPos: number;
+	flags: ZrTokenFlag;
 }
 
 export interface WhitespaceToken extends TokenBase {
@@ -97,12 +106,14 @@ export interface OperatorToken extends TokenBase {
 export interface StringToken extends TokenBase {
 	kind: ZrTokenKind.String;
 	value: string;
+	closed: boolean;
 	quotes?: string;
 }
 
 export function joinInterpolatedString(values: string[], variables: string[]) {
 	const resulting = new Array<string>();
-	for (const [k, v] of values.entries()) {
+	for (let k = 0; k < values.size(); k++) {
+		const v = values[k];
 		resulting.push(v);
 
 		const matchingVar = variables[k];

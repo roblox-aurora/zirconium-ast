@@ -426,7 +426,8 @@ export default class ZrParser {
 	private parseInterpolatedString(token: InterpolatedStringToken) {
 		const { values, variables } = token;
 		const resulting = new Array<StringLiteral | Identifier>();
-		for (const [k, v] of values.entries()) {
+		for (let k = 0; k < values.size(); k++) {
+			const v = values[k];
 			resulting.push(createStringNode(v));
 
 			const matchingVar = variables[k];

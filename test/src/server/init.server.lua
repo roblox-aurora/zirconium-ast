@@ -1,5 +1,5 @@
-local TS = require(script.Parent.CommandLib.vendor.RuntimeLib)
-local CommandLib = TS.import(script, script.Parent, "CommandLib")
+local TS = require(game:GetService("ReplicatedStorage").CommandLib.vendor.RuntimeLib)
+local CommandLib = TS.import(script, game:GetService("ReplicatedStorage"), "CommandLib")
 local CommandAstParser = CommandLib.CommandAstParser
 local ast = CommandLib.ast
 local util = CommandLib.astUtility
@@ -14,17 +14,17 @@ local parser = CommandAstParser.new({
     nestingInnerExpressions = true,
     commands = {
         { command = "void" },
-        { 
-            command = "cmd1", 
+        {
+            command = "cmd1",
             args = {
-                { 
+                {
                     type = {"string"}
                 }
-            } 
+            }
         },
         { command = "cmd2", children = {
-            { 
-                command = "sub", 
+            {
+                command = "sub",
                 options = {
                     test = { type = {"string", "number"} }
                 },

@@ -1,8 +1,13 @@
+import { typeGuards } from "Nodes";
+
 /**
  * A text stream
  */
 export default class ZrTextStream {
-	private ptr = 0;
+	private ptr = 1;
+	private column = 0;
+	private row = 0;
+
 	public constructor(private source: string) {}
 
 	/**
@@ -11,7 +16,25 @@ export default class ZrTextStream {
 	public next(offset = 1) {
 		const char = this.source.sub(this.ptr, this.ptr);
 		this.ptr += offset;
+		if (char === "\n") {
+			this.column += 1;
+		} else {
+			this.column = 0;
+			this.row += 1;
+		}
 		return char;
+	}
+
+	public getRowAndColumn() {
+		return identity<[row: number, column: number]>([this.row, this.column]);
+	}
+
+	public getRow() {
+		return this.row;
+	}
+
+	public getColumn() {
+		return this.column;
 	}
 
 	/**
@@ -26,7 +49,7 @@ export default class ZrTextStream {
 	 * Resets the stream pointer to the beginning.
 	 */
 	public reset() {
-		this.ptr = 0;
+		this.ptr = 1;
 	}
 
 	/**

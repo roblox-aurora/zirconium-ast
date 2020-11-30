@@ -1,5 +1,5 @@
-local TS = require(script.Parent.Parent.CommandLib.vendor.RuntimeLib)
-local CommandLib = TS.import(script, script.Parent.Parent, "CommandLib")
+local TS = require(game:GetService("ReplicatedStorage").CommandLib.vendor.RuntimeLib)
+local CommandLib = TS.import(script, game:GetService("ReplicatedStorage"), "CommandLib")
 local util = CommandLib.astUtility
 local prettyPrintNodes = util.prettyPrintNodes
 
@@ -9,17 +9,7 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local str = [[
-    $x = 0
-    $x += 10 + 10
-
-    if !$x && $y {
-
-    }
-
-    !""
-
-    $x = 1.2
-    $y = !100.0
+    function testFunction() {}
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)
@@ -41,17 +31,17 @@ lexer:reset()
 local parser = ZrParser.new(lexer, {
     commands = {
         { command = "void" },
-        { 
-            command = "cmd1", 
+        {
+            command = "cmd1",
             args = {
-                { 
+                {
                     type = {"string"}
                 }
-            } 
+            }
         },
         { command = "cmd2", children = {
-            { 
-                command = "sub", 
+            {
+                command = "sub",
                 options = {
                     test = { type = {"string", "number"} }
                 },
