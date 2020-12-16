@@ -380,6 +380,10 @@ export default class ZrParser {
 
 		this.functionCallScope += 1;
 
+		if (!this.lexer.hasNext()) {
+			warn("no next in lexer", this.lexer.prev().kind);
+		}
+
 		let argumentIndex = 0;
 		while (
 			this.lexer.hasNext() &&

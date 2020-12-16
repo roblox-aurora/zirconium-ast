@@ -61,18 +61,18 @@ printArray($arr)
 openString " this should
 break the string and not terminate]]
 
-createElement("ScreenGui", {
-    Parent = game.Players.LocalPlayer.PlayerGui
-}, {
-    createElement("TextLabel", {
-		RichText = true,
-		Text = hl.new(source):parse(),
-		TextXAlignment = "Left",
-		TextYAlignment = "Top",
-		Font = "Code",
-		TextSize = 18,
-		TextColor3 = Color3.fromRGB(198, 204, 215),
-		Size = UDim2.new(0, 500, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(33, 37, 43)
-	}, {}),
-})
+-- createElement("ScreenGui", {
+--     Parent = game.Players.LocalPlayer.PlayerGui
+-- }, {
+--     createElement("TextLabel", {
+-- 		RichText = true,
+-- 		Text = hl.new(source):parse(),
+-- 		TextXAlignment = "Left",
+-- 		TextYAlignment = "Top",
+-- 		Font = "Code",
+-- 		TextSize = 18,
+-- 		TextColor3 = Color3.fromRGB(198, 204, 215),
+-- 		Size = UDim2.new(0, 500, 1, 0),
+-- 		BackgroundColor3 = Color3.fromRGB(33, 37, 43)
+-- 	}, {}),
+-- })

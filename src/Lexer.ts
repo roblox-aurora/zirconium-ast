@@ -463,6 +463,6 @@ export default class ZrLexer {
 	}
 
 	public hasNext() {
-		return this.stream.hasNext();
+		return this.currentToken !== undefined || this.stream.hasNext();
 	}
 }
