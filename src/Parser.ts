@@ -368,8 +368,7 @@ export default class ZrParser {
 	private parseCallExpression(token: StringToken, isStrictFunctionCall = this.strict) {
 		const commandName = createIdentifier(token.value);
 
-		const nodes = new Array<Node>();
-		nodes.push(commandName);
+		const args = new Array<Node>();
 
 		// Enable 'strict' function-like calls e.g. `kill(vorlias)` vs `kill vorlias`
 		if (this.is(ZrTokenKind.Special, "(") || isStrictFunctionCall) {
@@ -401,7 +400,7 @@ export default class ZrParser {
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
 			this.preventCommandParsing = !this.strict;
-			nodes.push(this.parseExpression());
+			args.push(this.parseExpression());
 			this.preventCommandParsing = false;
 			argumentIndex++;
 		}
@@ -412,9 +411,9 @@ export default class ZrParser {
 		}
 
 		if (isStrictFunctionCall) {
-			return createCallExpression(commandName, nodes);
+			return createCallExpression(commandName, args);
 		} else {
-			return createSimpleCallExpression(commandName, nodes);
+			return createSimpleCallExpression(commandName, args);
 		}
 	}
 
@@ -623,7 +622,6 @@ export default class ZrParser {
 			if (this.is(ZrTokenKind.Operator, "=")) {
 				return this.parseVariableDeclaration(createIdentifier(id.value));
 			} else {
-				// this.lexer.next();
 				return createExpressionStatement(createIdentifier(id.value));
 			}
 		}
@@ -639,13 +637,9 @@ export default class ZrParser {
 			return createExpressionStatement(this.parsePropertyAccess(token));
 		}
 
-		print(token.kind);
-		// Pass token because it's finnicky. Hopefully figure a way to resolve this.
+		// This passes the token directly, since in this case the expressions statement is part of our statement
+		// generation code anyway.
 		return createExpressionStatement(this.mutateExpression(this.parseExpression(token)));
-		// this.parserError(
-		// 	`Unexpected '${token.value}' (${token.kind}) [${token.startPos}:${token.endPos}]`,
-		// 	ZrParserErrorCode.Unexpected,
-		// );
 	}
 
 	private parseVariableDeclaration(left: Identifier, flags: ZrNodeFlag = 0) {
@@ -653,14 +647,6 @@ export default class ZrParser {
 		this.isAssignmentExpression = true;
 		const right = this.mutateExpression(this.parseExpression());
 		this.isAssignmentExpression = false;
-
-		// if (!this.is(ZrTokenKind.EndOfStatement)) {
-		// 	this.parserError(
-		// 		"';' expected, got " + this.lexer.peek()?.kind,
-		// 		ZrParserErrorCode.Unexpected,
-		// 		this.lexer.peek(),
-		// 	);
-		// }
 
 		if (isAssignableExpression(right)) {
 			// isAssignment

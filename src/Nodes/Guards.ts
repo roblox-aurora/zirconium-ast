@@ -76,6 +76,8 @@ export const ASSIGNABLE = [
 	ZrNodeKind.ObjectLiteralExpression,
 	ZrNodeKind.BinaryExpression,
 	ZrNodeKind.UnaryExpression,
+	ZrNodeKind.CallExpression,
+	ZrNodeKind.SimpleCallExpression,
 ] as const;
 
 /**
