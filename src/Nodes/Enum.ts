@@ -2,8 +2,22 @@ export enum ZrNodeKind {
 	Unknown,
 	/** `cmd ...; cmd2 ...; ...` */
 	Source,
+
+	/** Any statement with an expression */
+	ExpressionStatement,
+
+	/** `cmd(...)` */
+	CallExpression,
+
 	/** `cmd ...` */
+	SimpleCallExpression,
+
+	/**
+	 * `cmd ...`
+	 * @deprecated Use CallExpression
+	 */
 	CommandStatement,
+
 	/** `$( ... )` */
 	InnerExpression,
 	/** `{ ... }` */
@@ -12,7 +26,9 @@ export enum ZrNodeKind {
 	String,
 	/** `true` or `false` */
 	Boolean,
-	/** `cmd` */
+	/** `cmd`
+	 * @deprecated
+	 */
 	CommandName,
 	/** `10`, `10.0` */
 	Number,

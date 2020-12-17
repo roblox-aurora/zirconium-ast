@@ -2,8 +2,6 @@ import {
 	NodeTypes,
 	Node,
 	VALID_PREFIX_CHARS,
-	CommandName,
-	CommandStatement,
 	VariableStatement,
 	StringLiteral,
 	InvalidNode,
@@ -16,6 +14,7 @@ import {
 	NumberLiteral,
 	BooleanLiteral,
 	BinaryExpression,
+	ExpressionStatement,
 } from "./NodeTypes";
 import { ZrNodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -38,7 +37,6 @@ export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K
 	return nodes.filter((node): node is NodeTypes[K] => isNode(node, type));
 }
 
-export function getSiblingNode(nodes: Node[], kind: ZrNodeKind.CommandName): CommandName | undefined;
 export function getSiblingNode(nodes: Node[], kind: ZrNodeKind) {
 	return nodes.find((f) => f.kind === kind);
 }
@@ -74,7 +72,6 @@ export const ASSIGNABLE = [
 	ZrNodeKind.PropertyAccessExpression,
 	ZrNodeKind.ArrayIndexExpression,
 	ZrNodeKind.ObjectLiteralExpression,
-	ZrNodeKind.CommandStatement,
 	ZrNodeKind.BinaryExpression,
 	ZrNodeKind.UnaryExpression,
 ] as const;
@@ -101,11 +98,7 @@ export function isPrimitiveExpression(node: Node): node is NodeTypes[typeof LIT[
 	return isNodeIn(node, ASSIGNABLE);
 }
 
-const EXPRESSIONABLE = [
-	ZrNodeKind.CommandStatement,
-	ZrNodeKind.VariableStatement,
-	ZrNodeKind.BinaryExpression,
-] as const;
+const EXPRESSIONABLE = [ZrNodeKind.VariableStatement, ZrNodeKind.BinaryExpression] as const;
 
 /**
  * Can this expression be prefixed?
@@ -118,8 +111,8 @@ export function isSource(node: Node): node is CommandSource {
 	return node !== undefined && node.kind === ZrNodeKind.Source;
 }
 
-export function isCommandStatement(node: Node): node is CommandStatement {
-	return node !== undefined && node.kind === ZrNodeKind.CommandStatement;
+export function isExpressionStatement(node: Node): node is ExpressionStatement {
+	return node !== undefined && node.kind === ZrNodeKind.ExpressionStatement;
 }
 
 export function isVariableStatement(node: Node): node is VariableStatement {
