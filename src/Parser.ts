@@ -7,9 +7,9 @@ import {
 	createBinaryExpression,
 	createBlock,
 	createBooleanNode,
-	createCommandName,
+	createCallExpression,
 	createCommandSource,
-	createCommandStatement,
+	createExpressionStatement,
 	createForInStatement,
 	createFunctionDeclaration,
 	createIdentifier,
@@ -18,12 +18,13 @@ import {
 	createKeywordTypeNode,
 	createNumberNode,
 	createObjectLiteral,
-	createOperator,
 	createOptionExpression,
 	createOptionKey,
 	createParameter,
+	createParenthesizedExpression,
 	createPropertyAccessExpression,
 	createPropertyAssignment,
+	createSimpleCallExpression,
 	createStringNode,
 	createTypeReference,
 	createUnaryExpression,
@@ -32,35 +33,33 @@ import {
 } from "Nodes/Create";
 import { ZrNodeFlag, ZrTypeKeyword } from "Nodes/Enum";
 import { getFriendlyName } from "Nodes/Functions";
-import { isAssignableExpression } from "Nodes/Guards";
+import { isAssignableExpression, isOptionExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
-	AssignableExpression,
-	ExpressionStatement,
+	CallExpression,
+	Expression,
 	Identifier,
 	Node,
-	Parameter,
+	OptionExpression,
+	ParameterDeclaration,
 	PropertyAccessExpression,
 	PropertyAssignment,
-	SourceBlock,
+	SimpleCallExpression,
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
-import Grammar, { UnaryOperatorsTokens } from "Tokens/Grammar";
+import Grammar, { OperatorTokens, UnaryOperatorsTokens } from "Tokens/Grammar";
 import {
 	IdentifierToken,
 	InterpolatedStringToken,
 	isToken,
 	OperatorToken,
+	PropertyAccessToken,
 	StringToken,
 	Token,
 	TokenTypes,
 	ZrTokenKind,
 } from "Tokens/Tokens";
-
-interface ZrParserOptions {
-	commands: AstCommandDefinitions;
-}
 
 export const enum ZrParserErrorCode {
 	Unexpected = 1001,
@@ -70,6 +69,10 @@ export const enum ZrParserErrorCode {
 	ExpectedToken,
 	NotImplemented,
 	ExpressionExpected,
+}
+
+interface FunctionCallContext {
+	strict: boolean;
 }
 
 export const enum ZrParserWarningCode {
@@ -95,13 +98,16 @@ export interface ParserWarning {
 
 export default class ZrParser {
 	private preventCommandParsing = false;
-	private ignoreWhitespace = false;
 	private strict = false;
+	private callContext = new Array<FunctionCallContext>();
 	private errors = new Array<ParserError>();
 	private warnings = new Array<ParserWarning>();
-	private functionCallScope = 0;
 
 	public constructor(private lexer: ZrLexer) {}
+
+	private getCurrentCallContext(): FunctionCallContext | undefined {
+		return this.callContext[this.callContext.size() - 1];
+	}
 
 	private parserError(message: string, code: ZrParserErrorCode, token?: Token): never {
 		this.errors.push(
@@ -112,12 +118,6 @@ export default class ZrParser {
 			}),
 		);
 		this.throwParserError(token ? `[${token.startPos}:${token.endPos}] ${message}` : message);
-	}
-
-	private parserWarning(message: string, code: ZrParserWarningCode) {
-		this.warnings.push(
-			identity<ParserWarning>({ message, code }),
-		);
 	}
 
 	private parserNodeError(message: string, code: ZrParserErrorCode, node?: Node): never {
@@ -162,7 +162,11 @@ export default class ZrParser {
 			return this.lexer.next();
 		} else {
 			const node = this.lexer.peek();
-			this.parserError(message ?? "Expected '" + value + "'", ZrParserErrorCode.Unexpected, node);
+			this.parserError(
+				message ?? "Expected '" + value + "' got '" + node?.value + "'",
+				ZrParserErrorCode.Unexpected,
+				node,
+			);
 		}
 	}
 
@@ -195,7 +199,7 @@ export default class ZrParser {
 	private parseInlineStatement() {
 		if (this.is(ZrTokenKind.Special, ":")) {
 			this.skip(ZrTokenKind.Special, ":");
-			return createBlock([this.mutateExpressionStatement(this.parseNextExpression()) as Statement]);
+			return createBlock([this.mutateStatement(this.parseNext()) as Statement]);
 		} else {
 			this.parserError("Expected ':' got  " + this.lexer.peek()?.kind, ZrParserErrorCode.ExpectedToken);
 		}
@@ -210,7 +214,7 @@ export default class ZrParser {
 	}
 
 	private parseParameters() {
-		const parameters = new Array<Parameter>();
+		const parameters = new Array<ParameterDeclaration>();
 		if (this.is(ZrTokenKind.Special, "(")) {
 			this.skip(ZrTokenKind.Special, "(");
 
@@ -265,6 +269,7 @@ export default class ZrParser {
 
 			if (this.is(ZrTokenKind.Keyword, "in")) {
 				this.lexer.next();
+
 				const targetId = this.get(ZrTokenKind.Identifier);
 				if (targetId !== undefined) {
 					this.lexer.next();
@@ -275,8 +280,15 @@ export default class ZrParser {
 						this.parseBlockOrInlineStatement(),
 					);
 				} else if (!this.lexer.isNextOfKind(ZrTokenKind.EndOfStatement)) {
-					const expression = this.mutateExpressionStatement(this.parseNextExpression());
-					if (isNode(expression, ZrNodeKind.CommandStatement)) {
+					const expression = this.mutateExpression(this.parseExpression());
+					if (
+						isNode(expression, ZrNodeKind.CallExpression) ||
+						isNode(expression, ZrNodeKind.SimpleCallExpression) ||
+						isNode(expression, ZrNodeKind.ArrayLiteralExpression) ||
+						isNode(expression, ZrNodeKind.ObjectLiteralExpression) ||
+						isNode(expression, ZrNodeKind.ArrayIndexExpression) ||
+						isNode(expression, ZrNodeKind.ParenthesizedExpression)
+					) {
 						return createForInStatement(
 							createIdentifier(id.value),
 							expression,
@@ -284,7 +296,7 @@ export default class ZrParser {
 						);
 					} else {
 						this.parserError(
-							"ForIn statement expects identifier or command statement",
+							"ForIn statement expects a valid expression",
 							ZrParserErrorCode.IdentifierExpected,
 						);
 					}
@@ -326,11 +338,12 @@ export default class ZrParser {
 	private parseIfStatement() {
 		this.skip(ZrTokenKind.Keyword, "if");
 
-		let expr: ExpressionStatement;
+		let expr!: Expression;
 		if (this.is(ZrTokenKind.Special, "(")) {
-			expr = this.parseSource("(", ")")[0] as ExpressionStatement;
+			// expr = this.parseSource("(", ")")[0] as Expression;
+			throw `TODO: Fix`;
 		} else {
-			expr = this.mutateExpressionStatement(this.parseNextExpression());
+			expr = this.mutateExpression(this.parseExpression());
 		}
 
 		const node = createIfStatement(expr, undefined, undefined);
@@ -361,27 +374,30 @@ export default class ZrParser {
 
 	private isEndBracketOrBlockToken() {
 		return (
-			this.is(ZrTokenKind.Special, ")") || this.is(ZrTokenKind.Special, "{") || this.is(ZrTokenKind.Special, ":")
+			this.is(ZrTokenKind.Special, ")") ||
+			this.is(ZrTokenKind.Special, "{") ||
+			this.is(ZrTokenKind.Special, "]") ||
+			this.is(ZrTokenKind.Special, "}")
+			// this.is(ZrTokenKind.Special, ":")
 		);
 	}
 
-	private parseCommandStatement(token: StringToken, isStrictFunctionCall = this.strict) {
-		const commandName = createCommandName(createStringNode(token.value));
+	private functionCallScope = 0;
+	private parseCallExpression(token: StringToken, isStrictFunctionCall = this.strict) {
+		this.functionCallScope += 1;
+		const callee = createIdentifier(token.value);
 
-		const nodes = new Array<Node>();
-		nodes.push(commandName);
+		const options = new Array<OptionExpression>();
+		const args = new Array<Expression>();
 
 		// Enable 'strict' function-like calls e.g. `kill(vorlias)` vs `kill vorlias`
 		if (this.is(ZrTokenKind.Special, "(") || isStrictFunctionCall) {
 			this.skip(ZrTokenKind.Special, "(");
 			isStrictFunctionCall = true;
 			this.strict = true;
-		}
-
-		this.functionCallScope += 1;
-
-		if (!this.lexer.hasNext()) {
-			warn("no next in lexer", this.lexer.prev().kind);
+			this.callContext.push({ strict: true });
+		} else {
+			this.callContext.push({ strict: false });
 		}
 
 		let argumentIndex = 0;
@@ -403,12 +419,15 @@ export default class ZrParser {
 			if (isStrictFunctionCall && argumentIndex > 0) {
 				this.skip(ZrTokenKind.Special, ",");
 			}
-
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
-			this.preventCommandParsing = !this.strict;
-			nodes.push(this.parseNextExpressionStatement());
-			this.preventCommandParsing = false;
+			const arg = this.mutateExpression(this.parseExpression());
+			if (isOptionExpression(arg)) {
+				options.push(arg);
+			} else {
+				args.push(arg);
+			}
+
 			argumentIndex++;
 		}
 
@@ -417,9 +436,18 @@ export default class ZrParser {
 			this.strict = false;
 		}
 
-		this.functionCallScope -= 1;
+		this.callContext.pop();
 
-		return createCommandStatement(commandName, nodes);
+		let result: CallExpression | SimpleCallExpression;
+
+		if (isStrictFunctionCall) {
+			result = createCallExpression(callee, args, options);
+		} else {
+			result = createSimpleCallExpression(callee, args);
+		}
+
+		this.functionCallScope -= 1;
+		return result;
 	}
 
 	/**
@@ -453,8 +481,9 @@ export default class ZrParser {
 		let index = 0;
 
 		this.skip(ZrTokenKind.Special, start);
-		this.preventCommandParsing = true;
-		this.ignoreWhitespace = true;
+		this.preventCommandParsing = false;
+
+		const functionContext = this.getCurrentCallContext();
 
 		while (this.lexer.hasNext()) {
 			if (this.is(ZrTokenKind.Special, stop)) {
@@ -465,7 +494,7 @@ export default class ZrParser {
 				continue;
 			}
 
-			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || strict)) {
+			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || (functionContext && functionContext.strict))) {
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
@@ -475,9 +504,6 @@ export default class ZrParser {
 
 			index++;
 		}
-
-		this.ignoreWhitespace = false;
-		this.preventCommandParsing = false;
 
 		this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 		this.skip(ZrTokenKind.Special, stop);
@@ -492,7 +518,7 @@ export default class ZrParser {
 
 			const preventCommandParsing = this.preventCommandParsing;
 			this.preventCommandParsing = false;
-			const expression = this.parseNextExpressionStatement();
+			const expression = this.parseExpression();
 			this.preventCommandParsing = preventCommandParsing;
 			return createPropertyAssignment(createIdentifier(id.value), expression);
 		} else {
@@ -506,53 +532,30 @@ export default class ZrParser {
 	}
 
 	private parseArrayExpression() {
-		const values = this.parseListExpression("[", "]", () => this.parseNextExpressionStatement());
+		const values = this.parseListExpression("[", "]", () => this.parseExpression(), undefined, true);
 		return createArrayLiteral(values);
 	}
 
-	private parseUnaryExpression() {
-		const token = this.lexer.next() as OperatorToken;
-		const rhs = this.mutateExpressionStatement(this.parseNextExpressionStatement());
-		return createUnaryExpression(token.value, rhs);
+	private parsePropertyAccess(token: PropertyAccessToken) {
+		let expr: Identifier | PropertyAccessExpression | ArrayIndexExpression = createIdentifier(token.value);
+		for (const name of token.properties) {
+			if (name.match("%d+")[0]) {
+				expr = createArrayIndexExpression(expr, createNumberNode(tonumber(name)!));
+			} else {
+				expr = createPropertyAccessExpression(expr, createIdentifier(name));
+			}
+		}
+		return expr;
 	}
 
 	private parseStrictFunctionOption(option: string) {
 		this.skip(ZrTokenKind.Special, ":");
-		return createOptionExpression(
-			createOptionKey(option),
-			this.mutateExpressionStatement(this.parseNextExpressionStatement()) as AssignableExpression,
-		);
+		return createOptionExpression(createOptionKey(option), this.mutateExpression(this.parseExpression()));
 	}
 
-	/**
-	 * Parses the next expression statement
-	 */
-	private parseNextExpressionStatement(): ExpressionStatement {
-		if (this.is(ZrTokenKind.Special, "(")) {
-			this.lexer.next();
-			const expr = this.parseNextExpression();
-			this.skip(ZrTokenKind.Special, ")");
-			return expr;
-		}
-
-		if (this.is(ZrTokenKind.Keyword, "function")) {
-			return this.parseFunction();
-		}
-
-		if (this.is(ZrTokenKind.Keyword, "for")) {
-			return this.parseFor();
-		}
-
+	private parseExpression(token?: Token): Expression {
 		if (this.is(ZrTokenKind.Special, "{")) {
-			if (this.isAssignmentExpression) {
-				return this.parseObjectExpression();
-			} else {
-				return this.parseBlock();
-			}
-		}
-
-		if (this.is(ZrTokenKind.Keyword, "if")) {
-			return this.parseIfStatement();
+			return this.parseObjectExpression();
 		}
 
 		if (this.is(ZrTokenKind.Special, "[")) {
@@ -560,8 +563,8 @@ export default class ZrParser {
 		}
 
 		// Handle literals
-		const token = this.lexer.next();
-		assert(token);
+		token = token ?? this.lexer.next();
+		assert(token, "No token found: " + this.lexer.peek()?.kind);
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
@@ -572,14 +575,14 @@ export default class ZrParser {
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
+				const context = this.getCurrentCallContext();
 
-				if (this.is(ZrTokenKind.Operator, "=")) {
-					return this.mutateExpressionStatement(createIdentifier(token.value, ""));
-				} else if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":")) {
+				if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":") && context?.strict) {
 					return this.parseStrictFunctionOption(token.value);
-				} else {
-					return this.parseCommandStatement(token);
 				}
+
+				const result = this.parseCallExpression(token);
+				return result;
 			}
 		}
 
@@ -612,24 +615,82 @@ export default class ZrParser {
 			isToken(token, ZrTokenKind.Operator) &&
 			Grammar.UnaryOperators.includes(token.value as UnaryOperatorsTokens)
 		) {
-			return createUnaryExpression(token.value, this.parseNextExpressionStatement());
+			return createUnaryExpression(token.value, this.parseNextStatement());
+		}
+
+		// Handle parenthesized expression
+		if (isToken(token, ZrTokenKind.Special) && token.value === "(") {
+			const expr = createParenthesizedExpression(this.mutateExpression(this.parseExpression()));
+			this.skip(ZrTokenKind.Special, ")");
+			return expr;
 		}
 
 		this.parserError(
-			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] FFS`,
 			ZrParserErrorCode.Unexpected,
 		);
 	}
 
-	private parseVariableDeclaration(left: Identifier, flags: ZrNodeFlag = 0) {
-		this.skipIf(ZrTokenKind.Operator, "=");
-		this.isAssignmentExpression = true;
-		const right = this.mutateExpressionStatement(this.parseNextExpressionStatement());
-		this.isAssignmentExpression = false;
-
-		if (!this.is(ZrTokenKind.EndOfStatement)) {
-			this.parserError("';' expected.", ZrParserErrorCode.Unexpected, this.lexer.peek());
+	/**
+	 * Parses the next expression statement
+	 */
+	private parseNextStatement(): Statement {
+		if (this.is(ZrTokenKind.Keyword, "function")) {
+			return this.parseFunction();
 		}
+
+		if (this.is(ZrTokenKind.Keyword, "for")) {
+			return this.parseFor();
+		}
+
+		if (this.is(ZrTokenKind.Special, "{")) {
+			return this.parseBlock();
+		}
+
+		if (this.is(ZrTokenKind.Keyword, "if")) {
+			return this.parseIfStatement();
+		}
+
+		if (this.is(ZrTokenKind.Identifier)) {
+			const id = this.get(ZrTokenKind.Identifier);
+			assert(id);
+			this.lexer.next();
+			if (this.is(ZrTokenKind.Operator, "=")) {
+				return this.parseVariableDeclaration(createIdentifier(id.value));
+			} else {
+				return createExpressionStatement(createIdentifier(id.value));
+			}
+		}
+
+		if (this.is(ZrTokenKind.PropertyAccess)) {
+			const id = this.get(ZrTokenKind.PropertyAccess);
+			assert(id);
+			this.lexer.next();
+			if (this.is(ZrTokenKind.Operator, "=")) {
+				return this.parseVariableDeclaration(this.parsePropertyAccess(id));
+			} else {
+				return createExpressionStatement(this.parsePropertyAccess(id));
+			}
+		}
+
+		const token = this.lexer.next();
+		assert(token);
+
+		// if (isToken(token, ZrTokenKind.Identifier)) {
+		// 	return this.parseVariableDeclaration(createIdentifier(token.value));
+		// }
+
+		// This passes the token directly, since in this case the expressions statement is part of our statement
+		// generation code anyway.
+		return createExpressionStatement(this.mutateExpression(this.parseExpression(token)));
+	}
+
+	private parseVariableDeclaration(
+		left: Identifier | PropertyAccessExpression | ArrayIndexExpression,
+		flags: ZrNodeFlag = 0,
+	) {
+		this.skipIf(ZrTokenKind.Operator, "=");
+		const right = this.mutateExpression(this.parseExpression());
 
 		if (isAssignableExpression(right)) {
 			// isAssignment
@@ -639,20 +700,14 @@ export default class ZrParser {
 			return statement;
 		} else {
 			this.parserNodeError(
-				`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
+				`Cannot assign ${getFriendlyName(right)} to variable '${left.kind}'`,
 				ZrParserErrorCode.InvalidVariableAssignment,
 				right,
 			);
 		}
 	}
 
-	private isAssignmentExpression = false;
-	/**
-	 * Mutates expression statements if required
-	 *
-	 * If the expression is a binary expression, it will mutate the expression accordingly
-	 */
-	private mutateExpressionStatement(left: ExpressionStatement, precedence = 0): ExpressionStatement {
+	private mutateExpression(left: Expression, precedence = 0): Expression {
 		const token = this.get(ZrTokenKind.Operator);
 		if (token) {
 			const otherPrecedence = Grammar.OperatorPrecedence[token.value];
@@ -660,16 +715,37 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=") {
-					if (!isNode(left, ZrNodeKind.Identifier)) {
-						this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
+					this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
+				}
+
+				return createBinaryExpression(left, token.value, this.mutateExpression(this.parseExpression()));
+			}
+		}
+
+		return left;
+	}
+
+	/**
+	 * Mutates expression statements if required
+	 *
+	 * If the expression is a binary expression, it will mutate the expression accordingly
+	 */
+	private mutateStatement(left: Statement, precedence = 0): Statement {
+		const token = this.get(ZrTokenKind.Operator);
+		if (token) {
+			const otherPrecedence = Grammar.OperatorPrecedence[token.value];
+			if (otherPrecedence > precedence) {
+				this.lexer.next();
+
+				if (token.value === "=") {
+					if (!isNode(left, ZrNodeKind.Identifier) && !isNode(left, ZrNodeKind.PropertyAccessExpression)) {
+						this.parserError(
+							"Unexpected '=' (Assignment to " + ZrNodeKind[left.kind] + ")",
+							ZrParserErrorCode.Unexpected,
+							token,
+						);
 					}
 					return this.parseVariableDeclaration(left);
-				} else {
-					return createBinaryExpression(
-						left,
-						token.value,
-						this.mutateExpressionStatement(this.parseNextExpressionStatement()),
-					);
 				}
 			}
 		}
@@ -680,9 +756,9 @@ export default class ZrParser {
 	/**
 	 * Parse the next expression
 	 */
-	private parseNextExpression() {
-		const expr = this.parseNextExpressionStatement();
-		return this.mutateExpressionStatement(expr);
+	private parseNext() {
+		const expr = this.parseNextStatement();
+		return this.mutateStatement(expr);
 	}
 
 	private isNextEndOfStatement() {
@@ -707,7 +783,7 @@ export default class ZrParser {
 	 * Parse source code
 	 */
 	private parseSource(start?: string, stop?: string) {
-		const source = new Array<Node>();
+		const source = new Array<Statement>();
 
 		if (start) {
 			this.skip(ZrTokenKind.Special, start);
@@ -720,8 +796,8 @@ export default class ZrParser {
 				break;
 			}
 
-			const expression = this.parseNextExpression();
-			source.push(expression);
+			const statement = this.parseNext();
+			source.push(statement);
 
 			if (stop && this.is(ZrTokenKind.Special, stop)) {
 				break;

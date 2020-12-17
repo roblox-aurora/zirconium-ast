@@ -2,8 +2,6 @@ import {
 	NodeTypes,
 	Node,
 	VALID_PREFIX_CHARS,
-	CommandName,
-	CommandStatement,
 	VariableStatement,
 	StringLiteral,
 	InvalidNode,
@@ -16,6 +14,10 @@ import {
 	NumberLiteral,
 	BooleanLiteral,
 	BinaryExpression,
+	ExpressionStatement,
+	CallExpression,
+	SimpleCallExpression,
+	OptionExpression,
 } from "./NodeTypes";
 import { ZrNodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -38,7 +40,6 @@ export function getNodesOfType<K extends keyof NodeTypes>(nodes: Node[], type: K
 	return nodes.filter((node): node is NodeTypes[K] => isNode(node, type));
 }
 
-export function getSiblingNode(nodes: Node[], kind: ZrNodeKind.CommandName): CommandName | undefined;
 export function getSiblingNode(nodes: Node[], kind: ZrNodeKind) {
 	return nodes.find((f) => f.kind === kind);
 }
@@ -74,9 +75,10 @@ export const ASSIGNABLE = [
 	ZrNodeKind.PropertyAccessExpression,
 	ZrNodeKind.ArrayIndexExpression,
 	ZrNodeKind.ObjectLiteralExpression,
-	ZrNodeKind.CommandStatement,
 	ZrNodeKind.BinaryExpression,
 	ZrNodeKind.UnaryExpression,
+	ZrNodeKind.CallExpression,
+	ZrNodeKind.SimpleCallExpression,
 ] as const;
 
 /**
@@ -101,11 +103,7 @@ export function isPrimitiveExpression(node: Node): node is NodeTypes[typeof LIT[
 	return isNodeIn(node, ASSIGNABLE);
 }
 
-const EXPRESSIONABLE = [
-	ZrNodeKind.CommandStatement,
-	ZrNodeKind.VariableStatement,
-	ZrNodeKind.BinaryExpression,
-] as const;
+const EXPRESSIONABLE = [ZrNodeKind.VariableStatement, ZrNodeKind.BinaryExpression] as const;
 
 /**
  * Can this expression be prefixed?
@@ -114,12 +112,26 @@ export function isValidExpression(node: Node): node is NodeTypes[typeof EXPRESSI
 	return isNodeIn(node, EXPRESSIONABLE);
 }
 
+export function isCallableExpression(node: Node): node is CallExpression | SimpleCallExpression {
+	return (
+		node !== undefined && (node.kind === ZrNodeKind.CallExpression || node.kind === ZrNodeKind.SimpleCallExpression)
+	);
+}
+
+export function isCallExpression(node: Node): node is CallExpression {
+	return node !== undefined && node.kind === ZrNodeKind.CallExpression;
+}
+
+export function isOptionExpression(node: Node): node is OptionExpression {
+	return node !== undefined && node.kind === ZrNodeKind.OptionExpression;
+}
+
 export function isSource(node: Node): node is CommandSource {
 	return node !== undefined && node.kind === ZrNodeKind.Source;
 }
 
-export function isCommandStatement(node: Node): node is CommandStatement {
-	return node !== undefined && node.kind === ZrNodeKind.CommandStatement;
+export function isExpressionStatement(node: Node): node is ExpressionStatement {
+	return node !== undefined && node.kind === ZrNodeKind.ExpressionStatement;
 }
 
 export function isVariableStatement(node: Node): node is VariableStatement {

@@ -131,7 +131,7 @@ export default class ZrLexer {
 	private readStringToken(startCharacter: string) {
 		const startPos = this.stream.getPtr(); // ¯\_(ツ)_/¯
 		const [values, variables, closed] = this.parseLongString(startCharacter);
-		const endPos = this.stream.getPtr();
+		const endPos = this.stream.getPtr() - 1;
 
 		if (variables.size() === 0) {
 			return identity<StringToken>({
@@ -163,6 +163,11 @@ export default class ZrLexer {
 		}
 
 		return false;
+	}
+
+	/** @internal */
+	public lastText(count: number) {
+		return this.stream.sub(math.max(0, this.stream.getPtr() - count), this.stream.getPtr());
 	}
 
 	private readLiteralString() {
