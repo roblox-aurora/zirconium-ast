@@ -69,6 +69,10 @@ export const enum ZrParserErrorCode {
 	ExpressionExpected,
 }
 
+interface FunctionCallContext {
+	strict: boolean;
+}
+
 export const enum ZrParserWarningCode {
 	/**
 	 * Function names do not require $ prefix.
@@ -93,10 +97,15 @@ export interface ParserWarning {
 export default class ZrParser {
 	private preventCommandParsing = false;
 	private strict = false;
+	private callContext = new Array<FunctionCallContext>();
 	private errors = new Array<ParserError>();
 	private warnings = new Array<ParserWarning>();
 
 	public constructor(private lexer: ZrLexer) {}
+
+	private getCurrentCallContext(): FunctionCallContext | undefined {
+		return this.callContext[this.callContext.size() - 1];
+	}
 
 	private parserError(message: string, code: ZrParserErrorCode, token?: Token): never {
 		this.errors.push(
@@ -382,6 +391,9 @@ export default class ZrParser {
 			this.skip(ZrTokenKind.Special, "(");
 			isStrictFunctionCall = true;
 			this.strict = true;
+			this.callContext.push({ strict: true });
+		} else {
+			this.callContext.push({ strict: false });
 		}
 
 		let argumentIndex = 0;
@@ -416,6 +428,8 @@ export default class ZrParser {
 			this.skip(ZrTokenKind.Special, ")");
 			this.strict = false;
 		}
+
+		this.callContext.pop();
 
 		let result: CallExpression | SimpleCallExpression;
 
@@ -462,6 +476,8 @@ export default class ZrParser {
 		this.skip(ZrTokenKind.Special, start);
 		this.preventCommandParsing = false;
 
+		const functionContext = this.getCurrentCallContext();
+
 		while (this.lexer.hasNext()) {
 			if (this.is(ZrTokenKind.Special, stop)) {
 				break;
@@ -471,7 +487,7 @@ export default class ZrParser {
 				continue;
 			}
 
-			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || strict)) {
+			if (index > 0 && (this.is(ZrTokenKind.Special, separator) || (functionContext && functionContext.strict))) {
 				this.skip(ZrTokenKind.Special, separator);
 			}
 
@@ -638,23 +654,33 @@ export default class ZrParser {
 			}
 		}
 
+		if (this.is(ZrTokenKind.PropertyAccess)) {
+			const id = this.get(ZrTokenKind.PropertyAccess);
+			assert(id);
+			this.lexer.next();
+			if (this.is(ZrTokenKind.Operator, "=")) {
+				return this.parseVariableDeclaration(this.parsePropertyAccess(id));
+			} else {
+				return createExpressionStatement(this.parsePropertyAccess(id));
+			}
+		}
+
 		const token = this.lexer.next();
 		assert(token);
 
-		if (isToken(token, ZrTokenKind.Identifier)) {
-			return this.parseVariableDeclaration(createIdentifier(token.value));
-		}
-
-		if (isToken(token, ZrTokenKind.PropertyAccess)) {
-			return createExpressionStatement(this.parsePropertyAccess(token));
-		}
+		// if (isToken(token, ZrTokenKind.Identifier)) {
+		// 	return this.parseVariableDeclaration(createIdentifier(token.value));
+		// }
 
 		// This passes the token directly, since in this case the expressions statement is part of our statement
 		// generation code anyway.
 		return createExpressionStatement(this.mutateExpression(this.parseExpression(token)));
 	}
 
-	private parseVariableDeclaration(left: Identifier, flags: ZrNodeFlag = 0) {
+	private parseVariableDeclaration(
+		left: Identifier | PropertyAccessExpression | ArrayIndexExpression,
+		flags: ZrNodeFlag = 0,
+	) {
 		this.skipIf(ZrTokenKind.Operator, "=");
 		this.isAssignmentExpression = true;
 		const right = this.mutateExpression(this.parseExpression());
@@ -668,7 +694,7 @@ export default class ZrParser {
 			return statement;
 		} else {
 			this.parserNodeError(
-				`Cannot assign ${getFriendlyName(right)} to variable '${left.name}'`,
+				`Cannot assign ${getFriendlyName(right)} to variable '${left.kind}'`,
 				ZrParserErrorCode.InvalidVariableAssignment,
 				right,
 			);
@@ -703,8 +729,12 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=") {
-					if (!isNode(left, ZrNodeKind.Identifier)) {
-						this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
+					if (!isNode(left, ZrNodeKind.Identifier) && !isNode(left, ZrNodeKind.PropertyAccessExpression)) {
+						this.parserError(
+							"Unexpected '=' (Assignment to " + ZrNodeKind[left.kind] + ")",
+							ZrParserErrorCode.Unexpected,
+							token,
+						);
 					}
 					return this.parseVariableDeclaration(left);
 					// } else {

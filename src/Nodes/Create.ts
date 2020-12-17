@@ -329,7 +329,7 @@ export function createOperator(operator: OperatorToken["operator"], startPos?: n
 }
 
 export function createVariableDeclaration(
-	identifier: Identifier,
+	identifier: Identifier | PropertyAccessExpression | ArrayIndexExpression,
 	expression: VariableDeclaration["expression"],
 ): VariableDeclaration {
 	const node = createNode(ZrNodeKind.VariableDeclaration);

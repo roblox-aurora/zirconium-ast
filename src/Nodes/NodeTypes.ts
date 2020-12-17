@@ -168,7 +168,7 @@ export interface InvalidNode extends Node {
 export interface VariableDeclaration extends Declaration {
 	kind: ZrNodeKind.VariableDeclaration;
 	modifiers?: never;
-	identifier: Identifier;
+	identifier: Identifier | PropertyAccessExpression | ArrayIndexExpression;
 	expression: AssignableExpression;
 }
 
