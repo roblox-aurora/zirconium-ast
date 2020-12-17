@@ -269,7 +269,8 @@ export default class ZrParser {
 						isNode(expression, ZrNodeKind.CallExpression) ||
 						isNode(expression, ZrNodeKind.SimpleCallExpression) ||
 						isNode(expression, ZrNodeKind.ArrayLiteralExpression) ||
-						isNode(expression, ZrNodeKind.ObjectLiteralExpression)
+						isNode(expression, ZrNodeKind.ObjectLiteralExpression) ||
+						isNode(expression, ZrNodeKind.ArrayIndexExpression)
 					) {
 						return createForInStatement(
 							createIdentifier(id.value),
@@ -278,7 +279,7 @@ export default class ZrParser {
 						);
 					} else {
 						this.parserError(
-							"ForIn statement expects identifier or command statement",
+							"ForIn statement expects a valid expression",
 							ZrParserErrorCode.IdentifierExpected,
 						);
 					}
@@ -513,7 +514,7 @@ export default class ZrParser {
 		return expr;
 	}
 
-	private parseExpression(): Expression {
+	private parseExpression(token?: Token): Expression {
 		if (this.is(ZrTokenKind.Special, "{")) {
 			return this.parseObjectExpression();
 		}
@@ -522,12 +523,16 @@ export default class ZrParser {
 			return this.parseArrayExpression();
 		}
 
+		// if (this.is(ZrTokenKind.String)) {
+		// 	throw `StringNode before token`;
+		// }
+
 		// if (this.is(ZrTokenKind.PropertyAccess)) {
 		// 	return this.parsePropertyAccess();
 		// }
 
 		// Handle literals
-		const token = this.lexer.next();
+		token = token ?? this.lexer.next();
 		assert(token, "No token found: " + this.lexer.peek()?.kind);
 
 		if (isToken(token, ZrTokenKind.String)) {
@@ -577,7 +582,9 @@ export default class ZrParser {
 		}
 
 		this.parserError(
-			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] while parsing expressions`,
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] while parsing expressions - ${
+				this.lexer.prev()?.value
+			}`,
 			ZrParserErrorCode.Unexpected,
 		);
 	}
@@ -632,10 +639,13 @@ export default class ZrParser {
 			return createExpressionStatement(this.parsePropertyAccess(token));
 		}
 
-		this.parserError(
-			`Unexpected '${token.value}' (${token.kind}) [${token.startPos}:${token.endPos}]`,
-			ZrParserErrorCode.Unexpected,
-		);
+		print(token.kind);
+		// Pass token because it's finnicky. Hopefully figure a way to resolve this.
+		return createExpressionStatement(this.mutateExpression(this.parseExpression(token)));
+		// this.parserError(
+		// 	`Unexpected '${token.value}' (${token.kind}) [${token.startPos}:${token.endPos}]`,
+		// 	ZrParserErrorCode.Unexpected,
+		// );
 	}
 
 	private parseVariableDeclaration(left: Identifier, flags: ZrNodeFlag = 0) {
@@ -699,6 +709,11 @@ export default class ZrParser {
 						this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
 					}
 					return this.parseVariableDeclaration(left);
+					// } else {
+					// 	this.lexer.next();
+					// 	return createExpressionStatement(
+					// 		createBinaryExpression(left, token.value, this.mutateExpression(this.parseExpression())),
+					// 	);
 				}
 			}
 		}

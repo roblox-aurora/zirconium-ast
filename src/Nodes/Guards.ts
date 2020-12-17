@@ -15,6 +15,8 @@ import {
 	BooleanLiteral,
 	BinaryExpression,
 	ExpressionStatement,
+	CallExpression,
+	SimpleCallExpression,
 } from "./NodeTypes";
 import { ZrNodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -105,6 +107,16 @@ const EXPRESSIONABLE = [ZrNodeKind.VariableStatement, ZrNodeKind.BinaryExpressio
  */
 export function isValidExpression(node: Node): node is NodeTypes[typeof EXPRESSIONABLE[number]] {
 	return isNodeIn(node, EXPRESSIONABLE);
+}
+
+export function isCallableExpression(node: Node): node is CallExpression | SimpleCallExpression {
+	return (
+		node !== undefined && (node.kind === ZrNodeKind.CallExpression || node.kind === ZrNodeKind.SimpleCallExpression)
+	);
+}
+
+export function isCallExpression(node: Node): node is CallExpression {
+	return node !== undefined && node.kind === ZrNodeKind.CallExpression;
 }
 
 export function isSource(node: Node): node is CommandSource {
