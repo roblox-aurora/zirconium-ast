@@ -61,7 +61,7 @@ export default class ZrTextStream {
 	 * Whether or not there's a next character in the stream
 	 */
 	public hasNext() {
-		return this.source.size() > this.ptr;
+		return this.source.size() >= this.ptr;
 	}
 
 	/**
