@@ -108,7 +108,7 @@ export interface ParameterDeclaration extends NamedDeclaration {
 export interface ForInStatement extends Statement {
 	kind: ZrNodeKind.ForInStatement;
 	initializer: Identifier;
-	expression: Identifier | Statement;
+	expression: Expression;
 	statement: SourceBlock;
 }
 

@@ -144,6 +144,10 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			}
 			prettyPrintNodes([node.option, node.expression], prefix + "\t", verbose);
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.ExpressionStatement)) {
+			print(prefix, "ExpressionStatement", "{");
+			prettyPrintNodes([node.expression], prefix + "\t");
+			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.ArrayLiteralExpression)) {
 			print(prefix, "ArrayLiteralExpression", "{");
 			prettyPrintNodes(node.values, prefix + "\t");
