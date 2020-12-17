@@ -17,6 +17,7 @@ import {
 	ExpressionStatement,
 	CallExpression,
 	SimpleCallExpression,
+	OptionExpression,
 } from "./NodeTypes";
 import { ZrNodeFlag, ZrNodeKind } from "./Enum";
 import { getKindName, getNodeKindName } from "./Functions";
@@ -119,6 +120,10 @@ export function isCallableExpression(node: Node): node is CallExpression | Simpl
 
 export function isCallExpression(node: Node): node is CallExpression {
 	return node !== undefined && node.kind === ZrNodeKind.CallExpression;
+}
+
+export function isOptionExpression(node: Node): node is OptionExpression {
+	return node !== undefined && node.kind === ZrNodeKind.OptionExpression;
 }
 
 export function isSource(node: Node): node is CommandSource {

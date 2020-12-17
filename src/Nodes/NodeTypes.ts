@@ -231,6 +231,7 @@ export interface NumberLiteral extends LiteralExpression {
 export interface CallExpression extends Expression {
 	readonly kind: ZrNodeKind.CallExpression;
 	readonly expression: Identifier;
+	readonly options: OptionExpression[];
 	readonly isUnterminated?: boolean;
 	readonly arguments: Node[];
 }

@@ -32,13 +32,14 @@ import {
 } from "Nodes/Create";
 import { ZrNodeFlag, ZrTypeKeyword } from "Nodes/Enum";
 import { getFriendlyName } from "Nodes/Functions";
-import { isAssignableExpression } from "Nodes/Guards";
+import { isAssignableExpression, isOptionExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
 	CallExpression,
 	Expression,
 	Identifier,
 	Node,
+	OptionExpression,
 	ParameterDeclaration,
 	PropertyAccessExpression,
 	PropertyAssignment,
@@ -382,9 +383,10 @@ export default class ZrParser {
 	private functionCallScope = 0;
 	private parseCallExpression(token: StringToken, isStrictFunctionCall = this.strict) {
 		this.functionCallScope += 1;
-		const commandName = createIdentifier(token.value);
+		const callee = createIdentifier(token.value);
 
-		const args = new Array<Node>();
+		const options = new Array<OptionExpression>();
+		const args = new Array<Expression>();
 
 		// Enable 'strict' function-like calls e.g. `kill(vorlias)` vs `kill vorlias`
 		if (this.is(ZrTokenKind.Special, "(") || isStrictFunctionCall) {
@@ -417,9 +419,12 @@ export default class ZrParser {
 			}
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
-			// this.preventCommandParsing = !this.strict;
-			args.push(this.mutateExpression(this.parseExpression()));
-			// this.preventCommandParsing = false;
+			const arg = this.mutateExpression(this.parseExpression());
+			if (isOptionExpression(arg)) {
+				options.push(arg);
+			} else {
+				args.push(arg);
+			}
 
 			argumentIndex++;
 		}
@@ -434,9 +439,9 @@ export default class ZrParser {
 		let result: CallExpression | SimpleCallExpression;
 
 		if (isStrictFunctionCall) {
-			result = createCallExpression(commandName, args);
+			result = createCallExpression(callee, args, options);
 		} else {
-			result = createSimpleCallExpression(commandName, args);
+			result = createSimpleCallExpression(callee, args);
 		}
 
 		this.functionCallScope -= 1;
@@ -568,8 +573,9 @@ export default class ZrParser {
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
+				const context = this.getCurrentCallContext();
 
-				if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":")) {
+				if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":") && context?.strict) {
 					return this.parseStrictFunctionOption(token.value);
 				}
 

@@ -235,6 +235,7 @@ export function createSimpleCallExpression(
 export function createCallExpression(
 	expression: CallExpression["expression"],
 	args: CallExpression["arguments"],
+	options?: CallExpression["options"],
 	startPos?: number,
 	endPos?: number,
 ) {
@@ -243,6 +244,7 @@ export function createCallExpression(
 	result.arguments = args;
 	result.startPos = startPos;
 	result.endPos = endPos;
+	result.options = options ?? [];
 	return result;
 }
 
