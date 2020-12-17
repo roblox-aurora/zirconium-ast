@@ -33,8 +33,8 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 				print(prefix, CmdSyntaxKind[node.kind], "{");
 			}
 
-			prettyPrintNodes([node.expression], prefix + "\tExpression: ", verbose);
-			prettyPrintNodes(node.arguments, prefix + "\tArgument: ", verbose);
+			prettyPrintNodes([node.expression], prefix + "\t", verbose);
+			prettyPrintNodes(node.arguments, prefix + "\t", verbose);
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.Number) || isNode(node, CmdSyntaxKind.Boolean)) {
 			if (verbose) {

@@ -165,6 +165,11 @@ export default class ZrLexer {
 		return false;
 	}
 
+	/** @internal */
+	public lastText(count: number) {
+		return this.stream.sub(math.max(0, this.stream.getPtr() - count), this.stream.getPtr());
+	}
+
 	private readLiteralString() {
 		const startPos = this.stream.getPtr();
 		const literal = this.readWhile(

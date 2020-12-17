@@ -29,6 +29,11 @@ export default class ZrTextStream {
 		return identity<[row: number, column: number]>([this.row, this.column]);
 	}
 
+	/** @internal */
+	public sub(x: number, y: number) {
+		return this.source.sub(x, y);
+	}
+
 	public getRow() {
 		return this.row;
 	}

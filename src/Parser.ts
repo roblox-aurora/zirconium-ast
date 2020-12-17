@@ -35,12 +35,14 @@ import { getFriendlyName } from "Nodes/Functions";
 import { isAssignableExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
+	CallExpression,
 	Expression,
 	Identifier,
 	Node,
 	ParameterDeclaration,
 	PropertyAccessExpression,
 	PropertyAssignment,
+	SimpleCallExpression,
 	Statement,
 	StringLiteral,
 } from "Nodes/NodeTypes";
@@ -119,7 +121,7 @@ export default class ZrParser {
 	}
 
 	private throwParserError(message: string): never {
-		throw `[ZParser] Parsing Error: ${message}`;
+		throw `[ZParser] Parsing Error: ${message} - '${this.lexer.lastText(25)}'`;
 	}
 
 	/**
@@ -149,7 +151,11 @@ export default class ZrParser {
 			return this.lexer.next();
 		} else {
 			const node = this.lexer.peek();
-			this.parserError(message ?? "Expected '" + value + "'", ZrParserErrorCode.Unexpected, node);
+			this.parserError(
+				message ?? "Expected '" + value + "' got '" + node?.value + "'",
+				ZrParserErrorCode.Unexpected,
+				node,
+			);
 		}
 	}
 
@@ -264,7 +270,6 @@ export default class ZrParser {
 					);
 				} else if (!this.lexer.isNextOfKind(ZrTokenKind.EndOfStatement)) {
 					const expression = this.mutateExpression(this.parseExpression());
-					print(ZrNodeKind[expression.kind]);
 					if (
 						isNode(expression, ZrNodeKind.CallExpression) ||
 						isNode(expression, ZrNodeKind.SimpleCallExpression) ||
@@ -360,12 +365,14 @@ export default class ZrParser {
 			this.is(ZrTokenKind.Special, ")") ||
 			this.is(ZrTokenKind.Special, "{") ||
 			this.is(ZrTokenKind.Special, "]") ||
-			this.is(ZrTokenKind.Special, "}") ||
-			this.is(ZrTokenKind.Special, ":")
+			this.is(ZrTokenKind.Special, "}")
+			// this.is(ZrTokenKind.Special, ":")
 		);
 	}
 
+	private functionCallScope = 0;
 	private parseCallExpression(token: StringToken, isStrictFunctionCall = this.strict) {
+		this.functionCallScope += 1;
 		const commandName = createIdentifier(token.value);
 
 		const args = new Array<Node>();
@@ -396,12 +403,12 @@ export default class ZrParser {
 			if (isStrictFunctionCall && argumentIndex > 0) {
 				this.skip(ZrTokenKind.Special, ",");
 			}
-
 			isStrictFunctionCall && this.skipIf(ZrTokenKind.EndOfStatement, "\n");
 
-			this.preventCommandParsing = !this.strict;
-			args.push(this.parseExpression());
-			this.preventCommandParsing = false;
+			// this.preventCommandParsing = !this.strict;
+			args.push(this.mutateExpression(this.parseExpression()));
+			// this.preventCommandParsing = false;
+
 			argumentIndex++;
 		}
 
@@ -410,11 +417,16 @@ export default class ZrParser {
 			this.strict = false;
 		}
 
+		let result: CallExpression | SimpleCallExpression;
+
 		if (isStrictFunctionCall) {
-			return createCallExpression(commandName, args);
+			result = createCallExpression(commandName, args);
 		} else {
-			return createSimpleCallExpression(commandName, args);
+			result = createSimpleCallExpression(commandName, args);
 		}
+
+		this.functionCallScope -= 1;
+		return result;
 	}
 
 	/**
@@ -513,6 +525,11 @@ export default class ZrParser {
 		return expr;
 	}
 
+	private parseStrictFunctionOption(option: string) {
+		this.skip(ZrTokenKind.Special, ":");
+		return createOptionExpression(createOptionKey(option), this.mutateExpression(this.parseExpression()));
+	}
+
 	private parseExpression(token?: Token): Expression {
 		if (this.is(ZrTokenKind.Special, "{")) {
 			return this.parseObjectExpression();
@@ -521,14 +538,6 @@ export default class ZrParser {
 		if (this.is(ZrTokenKind.Special, "[")) {
 			return this.parseArrayExpression();
 		}
-
-		// if (this.is(ZrTokenKind.String)) {
-		// 	throw `StringNode before token`;
-		// }
-
-		// if (this.is(ZrTokenKind.PropertyAccess)) {
-		// 	return this.parsePropertyAccess();
-		// }
 
 		// Handle literals
 		token = token ?? this.lexer.next();
@@ -544,7 +553,12 @@ export default class ZrParser {
 			} else if (token.value !== "") {
 				assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
 
-				return this.parseCallExpression(token);
+				if (this.functionCallScope > 0 && this.is(ZrTokenKind.Special, ":")) {
+					return this.parseStrictFunctionOption(token.value);
+				}
+
+				const result = this.parseCallExpression(token);
+				return result;
 			}
 		}
 
@@ -581,9 +595,7 @@ export default class ZrParser {
 		}
 
 		this.parserError(
-			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] while parsing expressions - ${
-				this.lexer.prev()?.value
-			}`,
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
 			ZrParserErrorCode.Unexpected,
 		);
 	}
