@@ -194,11 +194,9 @@ export function createFunctionDeclaration(
 }
 
 export function createParenthesizedExpression(expression: ParenthesizedExpression["expression"]) {
-	return identity<ParenthesizedExpression>({
-		kind: ZrNodeKind.ParenthesizedExpression,
-		expression,
-		flags: 0,
-	});
+	const node = createNode(ZrNodeKind.ParenthesizedExpression);
+	node.expression = expression;
+	return node;
 }
 
 // /** @deprecated Use createCallExpression */

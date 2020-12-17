@@ -89,9 +89,9 @@ export interface OperatorToken extends Node {
 	kind: ZrNodeKind.OperatorToken;
 }
 
-export interface ParenthesizedExpression extends Node {
+export interface ParenthesizedExpression extends Expression {
 	kind: ZrNodeKind.ParenthesizedExpression;
-	expression: ExpressionStatement;
+	expression: Expression;
 }
 
 export interface TypeReference extends Node {

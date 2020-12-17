@@ -21,6 +21,7 @@ import {
 	createOptionExpression,
 	createOptionKey,
 	createParameter,
+	createParenthesizedExpression,
 	createPropertyAccessExpression,
 	createPropertyAssignment,
 	createSimpleCallExpression,
@@ -131,7 +132,7 @@ export default class ZrParser {
 	}
 
 	private throwParserError(message: string): never {
-		throw `[ZParser] Parsing Error: ${message} - '${this.lexer.lastText(25)}'`;
+		throw `[ZParser] Parsing Error: ${message}`;
 	}
 
 	/**
@@ -285,7 +286,8 @@ export default class ZrParser {
 						isNode(expression, ZrNodeKind.SimpleCallExpression) ||
 						isNode(expression, ZrNodeKind.ArrayLiteralExpression) ||
 						isNode(expression, ZrNodeKind.ObjectLiteralExpression) ||
-						isNode(expression, ZrNodeKind.ArrayIndexExpression)
+						isNode(expression, ZrNodeKind.ArrayIndexExpression) ||
+						isNode(expression, ZrNodeKind.ParenthesizedExpression)
 					) {
 						return createForInStatement(
 							createIdentifier(id.value),
@@ -616,8 +618,15 @@ export default class ZrParser {
 			return createUnaryExpression(token.value, this.parseNextStatement());
 		}
 
+		// Handle parenthesized expression
+		if (isToken(token, ZrTokenKind.Special) && token.value === "(") {
+			const expr = createParenthesizedExpression(this.mutateExpression(this.parseExpression()));
+			this.skip(ZrTokenKind.Special, ")");
+			return expr;
+		}
+
 		this.parserError(
-			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] FFS`,
 			ZrParserErrorCode.Unexpected,
 		);
 	}
@@ -626,13 +635,6 @@ export default class ZrParser {
 	 * Parses the next expression statement
 	 */
 	private parseNextStatement(): Statement {
-		if (this.is(ZrTokenKind.Special, "(")) {
-			this.lexer.next();
-			const expr = this.parseNext();
-			this.skip(ZrTokenKind.Special, ")");
-			return expr;
-		}
-
 		if (this.is(ZrTokenKind.Keyword, "function")) {
 			return this.parseFunction();
 		}
@@ -688,9 +690,7 @@ export default class ZrParser {
 		flags: ZrNodeFlag = 0,
 	) {
 		this.skipIf(ZrTokenKind.Operator, "=");
-		this.isAssignmentExpression = true;
 		const right = this.mutateExpression(this.parseExpression());
-		this.isAssignmentExpression = false;
 
 		if (isAssignableExpression(right)) {
 			// isAssignment
@@ -714,6 +714,10 @@ export default class ZrParser {
 			if (otherPrecedence > precedence) {
 				this.lexer.next();
 
+				if (token.value === "=") {
+					this.parserError("Unexpected '='", ZrParserErrorCode.Unexpected, token);
+				}
+
 				return createBinaryExpression(left, token.value, this.mutateExpression(this.parseExpression()));
 			}
 		}
@@ -721,7 +725,6 @@ export default class ZrParser {
 		return left;
 	}
 
-	private isAssignmentExpression = false;
 	/**
 	 * Mutates expression statements if required
 	 *
@@ -743,11 +746,6 @@ export default class ZrParser {
 						);
 					}
 					return this.parseVariableDeclaration(left);
-					// } else {
-					// 	this.lexer.next();
-					// 	return createExpressionStatement(
-					// 		createBinaryExpression(left, token.value, this.mutateExpression(this.parseExpression())),
-					// 	);
 				}
 			}
 		}

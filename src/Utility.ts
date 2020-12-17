@@ -190,6 +190,10 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			print(prefix, "TypeReference", "{");
 			prettyPrintNodes([node.typeName], prefix + "\t");
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.ParenthesizedExpression)) {
+			print(prefix, "ParenthesizedExpression", "{");
+			prettyPrintNodes([node.expression], prefix + "\t");
+			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.ForInStatement)) {
 			print(prefix, "ForInStatement", "{");
 			prettyPrintNodes([node.initializer, node.expression, node.statement], prefix + "\t");
