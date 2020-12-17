@@ -5,7 +5,7 @@ import {
 	VariableStatement,
 	StringLiteral,
 	InvalidNode,
-	CommandSource,
+	SourceFile,
 	PrefixToken,
 	OperatorToken,
 	Identifier,
@@ -126,7 +126,7 @@ export function isOptionExpression(node: Node): node is OptionExpression {
 	return node !== undefined && node.kind === ZrNodeKind.OptionExpression;
 }
 
-export function isSource(node: Node): node is CommandSource {
+export function isSource(node: Node): node is SourceFile {
 	return node !== undefined && node.kind === ZrNodeKind.Source;
 }
 

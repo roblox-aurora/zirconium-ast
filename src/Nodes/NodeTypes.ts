@@ -11,7 +11,7 @@ export interface NodeTypes {
 	[ZrNodeKind.String]: StringLiteral;
 	[ZrNodeKind.OptionKey]: Option;
 	[ZrNodeKind.EndOfStatement]: EndOfStatement;
-	[ZrNodeKind.Source]: CommandSource;
+	[ZrNodeKind.Source]: SourceFile;
 	[ZrNodeKind.Identifier]: Identifier;
 	[ZrNodeKind.PropertyAccessExpression]: PropertyAccessExpression;
 	[ZrNodeKind.Boolean]: BooleanLiteral;
@@ -119,7 +119,7 @@ export interface FunctionDeclaration extends DeclarationStatement {
 	body: SourceBlock;
 }
 
-export interface CommandSource extends Node {
+export interface SourceFile extends Node {
 	kind: ZrNodeKind.Source;
 	children: Array<Node>;
 }

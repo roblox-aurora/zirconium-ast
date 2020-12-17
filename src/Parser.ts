@@ -8,7 +8,7 @@ import {
 	createBlock,
 	createBooleanNode,
 	createCallExpression,
-	createCommandSource,
+	createSourceFile,
 	createExpressionStatement,
 	createForInStatement,
 	createFunctionDeclaration,
@@ -338,14 +338,7 @@ export default class ZrParser {
 	private parseIfStatement() {
 		this.skip(ZrTokenKind.Keyword, "if");
 
-		let expr!: Expression;
-		if (this.is(ZrTokenKind.Special, "(")) {
-			// expr = this.parseSource("(", ")")[0] as Expression;
-			throw `TODO: Fix`;
-		} else {
-			expr = this.mutateExpression(this.parseExpression());
-		}
-
+		const expr = this.mutateExpression(this.parseExpression());
 		const node = createIfStatement(expr, undefined, undefined);
 
 		if (this.is(ZrTokenKind.Special, ":")) {
@@ -374,10 +367,7 @@ export default class ZrParser {
 
 	private isEndBracketOrBlockToken() {
 		return (
-			this.is(ZrTokenKind.Special, ")") ||
-			this.is(ZrTokenKind.Special, "{") ||
-			this.is(ZrTokenKind.Special, "]") ||
-			this.is(ZrTokenKind.Special, "}")
+			this.is(ZrTokenKind.Special, ")") || this.is(ZrTokenKind.Special, "]") || this.is(ZrTokenKind.Special, "}")
 			// this.is(ZrTokenKind.Special, ":")
 		);
 	}
@@ -425,6 +415,7 @@ export default class ZrParser {
 			if (isOptionExpression(arg)) {
 				options.push(arg);
 			} else {
+				print("parseArg", ZrNodeKind[arg.kind]);
 				args.push(arg);
 			}
 
@@ -816,15 +807,15 @@ export default class ZrParser {
 	}
 
 	public parseOrThrow() {
-		return createCommandSource(this.parseSource());
+		return createSourceFile(this.parseSource());
 	}
 
 	public parse() {
 		try {
-			return createCommandSource(this.parseSource());
+			return createSourceFile(this.parseSource());
 		} catch (e) {
 			warn(e);
-			return createCommandSource([]);
+			return createSourceFile([]);
 		}
 	}
 

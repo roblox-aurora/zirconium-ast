@@ -6,7 +6,7 @@ import {
 	InnerExpression,
 	PrefixToken,
 	PrefixExpression,
-	CommandSource,
+	SourceFile,
 	NumberLiteral,
 	Identifier,
 	Option as OptionKey,
@@ -268,8 +268,8 @@ export function createPrefixExpression(
 	return node;
 }
 
-export function createCommandSource(children: CommandSource["children"]) {
-	const statement: CommandSource = { kind: ZrNodeKind.Source, children, flags: 0 };
+export function createSourceFile(children: SourceFile["children"]) {
+	const statement: SourceFile = { kind: ZrNodeKind.Source, children, flags: 0 };
 	for (const child of statement.children) {
 		child.parent = statement;
 	}
