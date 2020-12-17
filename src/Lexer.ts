@@ -131,7 +131,7 @@ export default class ZrLexer {
 	private readStringToken(startCharacter: string) {
 		const startPos = this.stream.getPtr(); // ¯\_(ツ)_/¯
 		const [values, variables, closed] = this.parseLongString(startCharacter);
-		const endPos = this.stream.getPtr();
+		const endPos = this.stream.getPtr() - 1;
 
 		if (variables.size() === 0) {
 			return identity<StringToken>({
