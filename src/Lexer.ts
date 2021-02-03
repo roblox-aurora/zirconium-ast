@@ -256,6 +256,7 @@ export default class ZrLexer {
 	private readVariableToken() {
 		const startPos = this.stream.getPtr();
 		const properties = new Array<string>();
+		let flags = ZrTokenFlag.None;
 
 		// skip $
 		this.stream.next();
@@ -266,7 +267,11 @@ export default class ZrLexer {
 		// read any property access
 		while (this.stream.hasNext() && this.stream.peek() === ".") {
 			this.stream.next();
-			properties.push(this.readWhile(this.isId));
+			const id = this.readWhile(this.isId);
+			if (id === "") {
+				flags = ZrTokenFlag.InvalidIdentifier;
+			}
+			properties.push(id);
 		}
 
 		const endPos = this.stream.getPtr() - 1;
@@ -276,7 +281,7 @@ export default class ZrLexer {
 				kind: ZrTokenKind.PropertyAccess,
 				startPos,
 				endPos,
-				flags: ZrTokenFlag.None,
+				flags,
 				properties,
 				value: id,
 			});

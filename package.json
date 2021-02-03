@@ -1,6 +1,6 @@
 {
   "name": "@rbxts/zirconium-ast",
-  "version": "1.0.0-beta.12",
+  "version": "1.0.0-beta.13",
   "description": "Parser for Zirconium",
   "main": "out/init.lua",
   "scripts": {
@@ -10,8 +10,8 @@
     "serve": "rojo serve ./test/.project.json --port 9000"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Vorlias",
+  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },

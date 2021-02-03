@@ -41,6 +41,7 @@ export const enum ZrTokenFlag {
 	Interpolated = 1 << 1,
 	FunctionName = 1 << 2,
 	Label = 1 << 3,
+	InvalidIdentifier,
 }
 
 export interface TokenBase {
