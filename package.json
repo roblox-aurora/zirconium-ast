@@ -12,6 +12,10 @@
   "keywords": [],
   "author": "Vorlias",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roblox-aurora/zirconium-ast.git"
+  },
   "publishConfig": {
     "access": "public"
   },
