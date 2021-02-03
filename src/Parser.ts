@@ -69,6 +69,7 @@ export const enum ZrParserErrorCode {
 	ExpectedToken,
 	NotImplemented,
 	ExpressionExpected,
+	UnterminatedStringLiteral,
 }
 
 interface FunctionCallContext {
@@ -558,12 +559,15 @@ export default class ZrParser {
 		if (!token) {
 			this.parserError("Expression expected", ZrParserErrorCode.ExpressionExpected, this.lexer.prev());
 		}
-		// assert(token, "No token found: " + this.lexer.peek()?.kind);
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
 				if (this.strict && token.quotes === undefined) {
 					this.parserError("Unexpected '" + token.value + "'", ZrParserErrorCode.UnexpectedWord);
+				}
+
+				if (!token.closed) {
+					this.parserError("Unterminated string literal", ZrParserErrorCode.UnterminatedStringLiteral, token);
 				}
 
 				return createStringNode(token.value, token.quotes);
