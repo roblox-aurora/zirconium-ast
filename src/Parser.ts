@@ -555,7 +555,10 @@ export default class ZrParser {
 
 		// Handle literals
 		token = token ?? this.lexer.next();
-		assert(token, "No token found: " + this.lexer.peek()?.kind);
+		if (!token) {
+			this.parserError("Expression expected", ZrParserErrorCode.ExpressionExpected, this.lexer.prev());
+		}
+		// assert(token, "No token found: " + this.lexer.peek()?.kind);
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
@@ -617,7 +620,7 @@ export default class ZrParser {
 		}
 
 		this.parserError(
-			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}] FFS`,
+			`Unexpected '${token.value}' [${token.startPos}:${token.endPos}]`,
 			ZrParserErrorCode.Unexpected,
 		);
 	}
