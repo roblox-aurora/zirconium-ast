@@ -95,7 +95,7 @@ export interface ZrParserError {
 	token?: Token;
 }
 
-export interface ParserWarning {
+export interface ZrParserWarning {
 	message: string;
 	code: ZrParserWarningCode;
 	node?: Node;
@@ -107,7 +107,7 @@ export default class ZrParser {
 	private strict = false;
 	private callContext = new Array<FunctionCallContext>();
 	private errors = new Array<ZrParserError>();
-	private warnings = new Array<ParserWarning>();
+	private warnings = new Array<ZrParserWarning>();
 
 	public constructor(private lexer: ZrLexer) {}
 

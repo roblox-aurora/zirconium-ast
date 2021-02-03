@@ -149,6 +149,7 @@ export default class ZrLexer {
 				values,
 				value: joinInterpolatedString(values, variables),
 				variables,
+				closed,
 				startPos,
 				flags: (closed ? ZrTokenFlag.None : ZrTokenFlag.UnterminatedString) | ZrTokenFlag.Interpolated,
 				endPos,

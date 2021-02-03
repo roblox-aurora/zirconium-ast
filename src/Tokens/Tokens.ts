@@ -130,6 +130,7 @@ export interface InterpolatedStringToken extends TokenBase {
 	values: string[];
 	value: string;
 	variables: string[];
+	closed?: boolean;
 	quotes?: string;
 }
 
