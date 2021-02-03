@@ -58,6 +58,7 @@ import {
 	StringToken,
 	Token,
 	TokenTypes,
+	ZrTokenFlag,
 	ZrTokenKind,
 } from "Tokens/Tokens";
 
@@ -448,6 +449,10 @@ export default class ZrParser {
 	 * @returns the InterpolatedStringExpression
 	 */
 	private parseInterpolatedString(token: InterpolatedStringToken) {
+		if ((token.flags & ZrTokenFlag.UnterminatedString) !== 0) {
+			this.parserError("Unterminated string literal", ZrParserErrorCode.UnterminatedStringLiteral, token);
+		}
+
 		const { values, variables } = token;
 		const resulting = new Array<StringLiteral | Identifier>();
 		for (let k = 0; k < values.size(); k++) {
@@ -459,6 +464,7 @@ export default class ZrParser {
 				resulting.push(createIdentifier(matchingVar));
 			}
 		}
+
 		return createInterpolatedString(...resulting);
 	}
 
