@@ -1,5 +1,6 @@
 *
 !out/*.lua
+!out/**/*.json
 !out/**/*.lua
 !out/*.d.ts
 !out/**/*.d.ts
