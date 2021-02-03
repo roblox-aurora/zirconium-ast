@@ -8,6 +8,10 @@
     "build": "rbxtsc-dev --type=package",
     "serve": "rojo serve ./test/.project.json --port 9000"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roblox-aurora/zirconium-ast.git"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
