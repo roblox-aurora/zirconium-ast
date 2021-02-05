@@ -30,15 +30,18 @@ const enum TokenCharacter {
 	Dash = "-",
 }
 
-export interface LexerOptions {
-	readonly ParseCommentsAsTokens: boolean;
-	readonly ParseWhitespaceAsTokens: boolean;
+export interface ZrLexerOptions {
+	readonly SyntaxHighlighterLexer: boolean;
+	readonly ExperimentalSyntaxHighlighter: boolean;
 	readonly CommandNames: string[];
 }
 
-const DEFAULTS = identity<LexerOptions>({
-	ParseCommentsAsTokens: false,
-	ParseWhitespaceAsTokens: false,
+const DEFAULTS = identity<ZrLexerOptions>({
+	/**
+	 * Enables the lexer to add all the tokens for syntax highlighting
+	 */
+	SyntaxHighlighterLexer: false,
+	ExperimentalSyntaxHighlighter: false,
 	CommandNames: [],
 });
 
@@ -50,9 +53,9 @@ export default class ZrLexer {
 	private static readonly ENDOFSTATEMENT = Grammar.EndOfStatement;
 	private static readonly SPECIAL = Grammar.Punctuation;
 	private static readonly BOOLEAN = Grammar.BooleanLiterals;
-	private options: LexerOptions;
+	private options: ZrLexerOptions;
 
-	public constructor(private stream: ZrTextStream, options?: Partial<LexerOptions>) {
+	public constructor(private stream: ZrTextStream, options?: Partial<ZrLexerOptions>) {
 		this.options = { ...DEFAULTS, ...options };
 	}
 
@@ -217,6 +220,45 @@ export default class ZrLexer {
 			});
 		}
 
+		if (previous && this.prevIs(ZrTokenKind.Keyword, 2) && (previous.value === "let" || previous.value === "const")) {
+
+			if (this.options.SyntaxHighlighterLexer && this.options.ExperimentalSyntaxHighlighter) {
+				const nextToken = this.peekNext(2);
+				print(nextToken);
+				if (nextToken?.kind === ZrTokenKind.Keyword && nextToken.value === "function") {
+					return identity<IdentifierToken>({
+						kind: ZrTokenKind.Identifier,
+						startPos,
+						endPos,
+						flags: ZrTokenFlag.FunctionName,
+						value: literal,
+					});			
+				}
+			}
+
+			return identity<IdentifierToken>({
+				kind: ZrTokenKind.Identifier,
+				startPos,
+				endPos,
+				flags: ZrTokenFlag.VariableDeclaration,
+				value: literal,
+			});			
+		}
+
+		if (this.options.SyntaxHighlighterLexer && this.options.ExperimentalSyntaxHighlighter) {
+			const nextToken = this.peekNext();
+			if (nextToken?.kind === ZrTokenKind.Special && nextToken.value === ":")  {
+				return identity<StringToken>({
+					kind: ZrTokenKind.String,
+					startPos,
+					endPos,
+					closed: true,
+					flags: ZrTokenFlag.Label,
+					value: literal,
+				});
+			}
+		}
+
 		return identity<StringToken>({
 			kind: ZrTokenKind.String,
 			startPos,
@@ -312,13 +354,30 @@ export default class ZrLexer {
 	}
 
 	/**
+	 * Similar to `readNext`, except resets the pointer back to the start of the read afterwards.
+	 */
+	private peekNext(offset = 1) {
+		print("peekNext", offset);
+		const start = this.stream.getPtr();
+		let i = 0;
+		let value: Token | undefined;
+		while (i < offset) {
+			this.readWhile(this.isWhitespace);
+			value = this.readNext();
+			i++;
+		}
+		this.stream.setPtr(start);
+		return value;
+	}
+
+	/**
 	 * Gets the next token
 	 */
 	private readNext(): Token | undefined {
 		const { options } = this;
 
 		// skip whitespace
-		if (!options.ParseWhitespaceAsTokens) this.readWhile(this.isWhitespace);
+		if (!options.SyntaxHighlighterLexer) this.readWhile(this.isWhitespace);
 		const startPos = this.stream.getPtr();
 
 		if (!this.stream.hasNext()) {
@@ -328,7 +387,7 @@ export default class ZrLexer {
 		// Get the next token
 		const char = this.stream.peek();
 
-		if (options.ParseWhitespaceAsTokens && this.isWhitespace(char)) {
+		if (options.SyntaxHighlighterLexer && this.isWhitespace(char)) {
 			this.stream.next();
 			return identity<WhitespaceToken>({
 				kind: ZrTokenKind.Whitespace,
@@ -341,7 +400,7 @@ export default class ZrLexer {
 
 		if (char === TokenCharacter.Hash) {
 			const value = this.readComment();
-			if (options.ParseCommentsAsTokens) {
+			if (options.SyntaxHighlighterLexer) {
 				return identity<CommentToken>({
 					kind: ZrTokenKind.Comment,
 					value,
@@ -399,6 +458,7 @@ export default class ZrLexer {
 			if (char === ":") {
 				const prev = this.prevSkipWhitespace();
 				if (prev) {
+					print(prev.kind, prev.value)
 					prev.flags |= ZrTokenFlag.Label;
 				}
 			}

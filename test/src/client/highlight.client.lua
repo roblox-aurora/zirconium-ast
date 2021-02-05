@@ -36,22 +36,18 @@ import, set, get,
 try, catch, finally,
 do, from, throw
 
-# BooleanLiterals
-true, false
+# Variables
+$x = 10
+let y = 10
+const z = 20
 
-# Function declarations
-function test(var0, $var1) {
-    return 10
+# Functions
+function regularFunction($var) {
+    return true
 }
-
-# Global calls
-print "Hello, World!"
-
-# Simple functio ncall
-test("Hello, World!", true, 10)
-
-# Complex function call
-player.addItem(uniqueItemId: "test", slot: "Head")
+const variableFunction = function($var) {
+    return "uses FunctionExpression $var"
+}
 ]]
 
 createElement("ScreenGui", {

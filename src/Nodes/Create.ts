@@ -37,6 +37,7 @@ import {
 	NodeTypes,
 	Expression,
 	UndefinedKeyword,
+	ExportKeyword,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -55,9 +56,20 @@ export function createInterpolatedString(
 	return node;
 }
 
+export function createReturnStatement(expression: Expression) {
+	const node = createNode(ZrNodeKind.ReturnStatement);
+	node.expression = expression;
+	return node;
+}
+
 export function createArrayLiteral(values: ArrayLiteralExpression["values"]) {
 	const node = createNode(ZrNodeKind.ArrayLiteralExpression);
 	node.values = values;
+	return node;
+}
+
+export function createExportKeyword(): ExportKeyword {
+	const node = createNode(ZrNodeKind.ExportKeyword);
 	return node;
 }
 
@@ -184,6 +196,16 @@ export function createParameter(name: ParameterDeclaration["name"], type?: Param
 	const node = createNode(ZrNodeKind.Parameter);
 	node.name = name;
 	node.type = type;
+	return node;
+}
+
+export function createFunctionExpression(
+	parameters: FunctionDeclaration["parameters"],
+	body: FunctionDeclaration["body"],
+) {
+	const node = createNode(ZrNodeKind.FunctionExpression);
+	node.parameters = parameters;
+	node.body = body;
 	return node;
 }
 
@@ -339,14 +361,19 @@ export function createVariableDeclaration(
 	expression: VariableDeclaration["expression"],
 ): VariableDeclaration {
 	const node = createNode(ZrNodeKind.VariableDeclaration);
+	node.flags = ZrNodeFlag.Let;
 	node.identifier = identifier;
 	node.expression = expression;
 	return node;
 }
 
-export function createVariableStatement(declaration: VariableDeclaration): VariableStatement {
+export function createVariableStatement(
+	declaration: VariableDeclaration,
+	modifiers?: VariableStatement["modifiers"],
+): VariableStatement {
 	const node = createNode(ZrNodeKind.VariableStatement);
 	node.declaration = declaration;
+	node.modifiers = modifiers;
 	return node;
 }
 

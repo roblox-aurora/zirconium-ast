@@ -60,6 +60,9 @@ export enum ZrNodeKind {
 	/** `function <id>([...parameters]) { <statements> }` */
 	FunctionDeclaration,
 
+	/** `function([...parameters]) { [statements] }` */
+	FunctionExpression,
+
 	/** `<id> [: <typeReference>]` */
 	Parameter,
 
@@ -76,6 +79,16 @@ export enum ZrNodeKind {
 	 * `undefined`
 	 */
 	UndefinedKeyword,
+
+	/**
+	 * `export`
+	 */
+	ExportKeyword,
+
+	/**
+	 * `return <expression>`
+	 */
+	ReturnStatement,
 }
 
 export enum ZrTypeKeyword {

@@ -80,6 +80,8 @@ export const ASSIGNABLE = [
 	ZrNodeKind.CallExpression,
 	ZrNodeKind.SimpleCallExpression,
 	ZrNodeKind.UndefinedKeyword,
+	ZrNodeKind.FunctionExpression,
+	ZrNodeKind.ParenthesizedExpression,
 ] as const;
 
 /**

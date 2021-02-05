@@ -70,4 +70,9 @@ export default class ZrTextStream {
 	public getPtr() {
 		return this.ptr;
 	}
+
+	/** @internal */
+	public setPtr(ptr: number) {
+		this.ptr = ptr;
+	}
 }

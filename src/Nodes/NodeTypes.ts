@@ -37,6 +37,9 @@ export interface NodeTypes {
 	[ZrNodeKind.PropertyAssignment]: PropertyAssignment;
 	[ZrNodeKind.UnaryExpression]: UnaryExpression;
 	[ZrNodeKind.UndefinedKeyword]: UndefinedKeyword;
+	[ZrNodeKind.ExportKeyword]: ExportKeyword;
+	[ZrNodeKind.FunctionExpression]: FunctionExpression;
+	[ZrNodeKind.ReturnStatement]: ReturnStatement;
 }
 
 export interface Node {
@@ -100,6 +103,10 @@ export interface OperatorToken extends Node {
 	kind: ZrNodeKind.OperatorToken;
 }
 
+export interface ExportKeyword extends Keyword {
+	kind: ZrNodeKind.ExportKeyword;
+}
+
 export interface UndefinedKeyword extends Keyword, Expression {
 	kind: ZrNodeKind.UndefinedKeyword;
 }
@@ -120,11 +127,22 @@ export interface ParameterDeclaration extends NamedDeclaration {
 	type?: TypeReference; // TODO: NumberKeyword, StringKeyword etc.
 }
 
+export interface ReturnStatement extends Statement {
+	kind: ZrNodeKind.ReturnStatement;
+	expression: Expression;
+}
+
 export interface ForInStatement extends Statement {
 	kind: ZrNodeKind.ForInStatement;
 	initializer: Identifier;
 	expression: Expression;
 	statement: SourceBlock;
+}
+
+export interface FunctionExpression extends Expression {
+	kind: ZrNodeKind.FunctionExpression;
+	parameters: ParameterDeclaration[]; // TODO:
+	body: SourceBlock;
 }
 
 export interface FunctionDeclaration extends DeclarationStatement {
@@ -182,13 +200,13 @@ export interface InvalidNode extends Node {
 
 export interface VariableDeclaration extends Declaration {
 	kind: ZrNodeKind.VariableDeclaration;
-	modifiers?: never;
 	identifier: Identifier | PropertyAccessExpression | ArrayIndexExpression;
 	expression: AssignableExpression;
 }
 
 export interface VariableStatement extends Statement {
 	kind: ZrNodeKind.VariableStatement;
+	modifiers?: Array<ExportKeyword>;
 	declaration: VariableDeclaration;
 }
 

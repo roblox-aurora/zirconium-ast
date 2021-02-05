@@ -2,6 +2,7 @@ import { Node } from "Nodes/NodeTypes";
 import { isNode } from "Nodes/Guards";
 import { CmdSyntaxKind } from "Nodes";
 import { getNodeKindName } from "Nodes/Functions";
+import { ZrNodeFlag } from "Nodes/Enum";
 
 export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 	for (const node of nodes) {
@@ -129,11 +130,17 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			prettyPrintNodes([node.prefix, node.expression], prefix + "\t", verbose);
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.VariableDeclaration)) {
-			print(prefix, CmdSyntaxKind[node.kind], "{");
+			const isConst =
+				(node.flags & ZrNodeFlag.Const) !== 0 ? "const" : (node.flags & ZrNodeFlag.Let) !== 0 ? "let" : "var";
+			print(prefix, CmdSyntaxKind[node.kind], isConst, "{");
+
 			prettyPrintNodes([node.identifier, node.expression], prefix + "\t", verbose);
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.VariableStatement)) {
 			print(prefix, CmdSyntaxKind[node.kind], "{");
+			if (node.modifiers) {
+				prettyPrintNodes(node.modifiers, prefix + "\t", verbose);
+			}
 			prettyPrintNodes([node.declaration], prefix + "\t", verbose);
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.EndOfStatement)) {
@@ -182,6 +189,11 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 			prettyPrintNodes(node.parameters, prefix + "\t ");
 			prettyPrintNodes([node.body], prefix + "\t");
 			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.FunctionExpression)) {
+			print(prefix, "FunctionExpression", "{");
+			prettyPrintNodes(node.parameters, prefix + "\t ");
+			prettyPrintNodes([node.body], prefix + "\t");
+			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.Parameter)) {
 			print(prefix, "Parameter", "{");
 			prettyPrintNodes([node.name], prefix + "\t");
@@ -197,6 +209,10 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 		} else if (isNode(node, CmdSyntaxKind.ForInStatement)) {
 			print(prefix, "ForInStatement", "{");
 			prettyPrintNodes([node.initializer, node.expression, node.statement], prefix + "\t");
+			print(prefix, "}");
+		} else if (isNode(node, CmdSyntaxKind.ReturnStatement)) {
+			print(prefix, "ReturnStatement", "{");
+			prettyPrintNodes([node.expression], prefix + "\t");
 			print(prefix, "}");
 		} else if (isNode(node, CmdSyntaxKind.IfStatement)) {
 			print(prefix, "IfStatement", "{");

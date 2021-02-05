@@ -1,5 +1,5 @@
 import ZrTextStream from "TextStream";
-import ZrLexer from "Lexer";
+import ZrLexer, { ZrLexerOptions } from "Lexer";
 import { isToken, ZrTokenFlag, ZrTokenKind } from "Tokens/Tokens";
 
 export interface ZrThemeOptions {
@@ -10,6 +10,8 @@ export interface ZrThemeOptions {
 	OperatorColor: string;
 	CommentColor?: string;
 	BooleanLiteral?: string;
+	FunctionColor?: string;
+	LabelColor?: string;
 	ControlCharacters: string;
 }
 
@@ -19,6 +21,7 @@ const DARK_THEME: ZrThemeOptions = {
 	NumberColor: "#56B6C2",
 	StringColor: "#79C36C",
 	OperatorColor: "#5F6672",
+	FunctionColor: "#E0E0E0",
 	BooleanLiteral: "#56B6C2",
 	ControlCharacters: "rgb(50, 50, 50)",
 	// CommentColor: "#5F6672",
@@ -30,29 +33,17 @@ function font(text: string, color: string | undefined) {
 
 export default class ZrRichTextHighlighter {
 	private lexer: ZrLexer;
-	constructor(source: string, private options: ZrThemeOptions = DARK_THEME) {
+	constructor(
+		source: string,
+		private options: ZrThemeOptions = DARK_THEME,
+		lexerOptions: Partial<ZrLexerOptions> = {
+			SyntaxHighlighterLexer: true,
+			ExperimentalSyntaxHighlighter: true,
+			CommandNames: [],
+		},
+	) {
 		const stream = new ZrTextStream(source);
-		this.lexer = new ZrLexer(stream, { ParseCommentsAsTokens: true, ParseWhitespaceAsTokens: true });
-	}
-
-	public parse2() {
-		let str = "";
-		const { options } = this;
-		while (this.lexer.hasNext()) {
-			const token = this.lexer.next();
-			if (!token) break;
-
-			switch (token.kind) {
-				case ZrTokenKind.Boolean:
-					str += font(token.rawText, options.BooleanLiteral ?? options.OperatorColor);
-					break;
-				case ZrTokenKind.Keyword:
-					break;
-				default:
-					str += token.value;
-			}
-		}
-		return str;
+		this.lexer = new ZrLexer(stream, lexerOptions);
 	}
 
 	public parse() {
@@ -75,10 +66,12 @@ export default class ZrRichTextHighlighter {
 						options.OperatorColor,
 					);
 				} else {
-					if (flags !== undefined && (flags & ZrTokenFlag.FunctionName) !== 0) {
-						str += font(value, options.VariableColor);
-					} else if ((flags & ZrTokenFlag.Label) !== 0) {
-						str += font(value, options.VariableColor);
+					if (flags !== 0) {
+						if ((flags & ZrTokenFlag.FunctionName) !== 0) {
+							str += font(value, options.FunctionColor ?? options.VariableColor);
+						} else if ((flags & ZrTokenFlag.Label) !== 0) {
+							str += font(value, options.LabelColor ?? options.VariableColor);
+						}
 					} else {
 						str += value;
 					}
@@ -102,7 +95,9 @@ export default class ZrRichTextHighlighter {
 			} else if (isToken(token, ZrTokenKind.Number)) str += font(token.rawText, options.NumberColor);
 			else if (isToken(token, ZrTokenKind.Identifier))
 				if ((token.flags & ZrTokenFlag.FunctionName) !== 0) {
-					str += font(`${token.value}`, options.NumberColor);
+					str += font(`${token.value}`, options.FunctionColor ?? options.NumberColor);
+				} else if ((token.flags & ZrTokenFlag.VariableDeclaration) !== 0) {
+					str += font(`${token.value}`, options.VariableColor);
 				} else {
 					str += font(`$${token.value}`, options.VariableColor);
 				}

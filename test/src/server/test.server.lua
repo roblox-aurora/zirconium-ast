@@ -9,7 +9,12 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local str = [[
-	$x = undefined
+	function regularFunction() {
+
+	}
+	const testFunction = function() {
+		
+	}
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)
@@ -29,6 +34,8 @@ end
 lexer:reset()
 
 local parser = ZrParser.new(lexer, {
+	version = 1000,
+	-- mode = "strict",
     commands = {
         { command = "void" },
         {
