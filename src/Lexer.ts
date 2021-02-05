@@ -224,7 +224,6 @@ export default class ZrLexer {
 
 			if (this.options.SyntaxHighlighterLexer && this.options.ExperimentalSyntaxHighlighter) {
 				const nextToken = this.peekNext(2);
-				print(nextToken);
 				if (nextToken?.kind === ZrTokenKind.Keyword && nextToken.value === "function") {
 					return identity<IdentifierToken>({
 						kind: ZrTokenKind.Identifier,
@@ -357,7 +356,6 @@ export default class ZrLexer {
 	 * Similar to `readNext`, except resets the pointer back to the start of the read afterwards.
 	 */
 	private peekNext(offset = 1) {
-		print("peekNext", offset);
 		const start = this.stream.getPtr();
 		let i = 0;
 		let value: Token | undefined;
