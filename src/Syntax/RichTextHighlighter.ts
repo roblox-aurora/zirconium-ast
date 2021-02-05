@@ -2,7 +2,7 @@ import ZrTextStream from "TextStream";
 import ZrLexer from "Lexer";
 import { isToken, ZrTokenFlag, ZrTokenKind } from "Tokens/Tokens";
 
-interface ZrThemeOptions {
+export interface ZrThemeOptions {
 	VariableColor: string;
 	KeywordColor: string;
 	NumberColor: string;
@@ -24,8 +24,8 @@ const DARK_THEME: ZrThemeOptions = {
 	// CommentColor: "#5F6672",
 };
 
-function font(text: string, color: string) {
-	return `<font color="${color}">${text}</font>`;
+function font(text: string, color: string | undefined) {
+	return color ? `<font color="${color}">${text}</font>` : text;
 }
 
 export default class ZrRichTextHighlighter {
@@ -84,7 +84,7 @@ export default class ZrRichTextHighlighter {
 					}
 				}
 			} else if (isToken(token, ZrTokenKind.InterpolatedString)) {
-				const { values, variables, quotes } = token;
+				const { values, variables, quotes, closed } = token;
 				const resulting = new Array<string>();
 				for (let k = 0; k < values.size(); k++) {
 					const v = values[k];
@@ -96,7 +96,7 @@ export default class ZrRichTextHighlighter {
 					}
 				}
 				str += font(
-					`${quotes}${font(resulting.join(""), options.StringColor)}${quotes}`,
+					`${quotes}${font(resulting.join(""), options.StringColor)}${closed ? quotes : ""}`,
 					options.OperatorColor,
 				);
 			} else if (isToken(token, ZrTokenKind.Number)) str += font(token.rawText, options.NumberColor);
@@ -113,8 +113,8 @@ export default class ZrRichTextHighlighter {
 				if (token.value === "\n") {
 					str += font("¬", options.ControlCharacters);
 					str += token.value;
-				} else {
-					str += token.value;
+				} else if (token.value !== "\r") {
+					str += font(token.value, options.OperatorColor);
 				}
 			} else if (isToken(token, ZrTokenKind.Whitespace)) {
 				if (token.value === " ") {

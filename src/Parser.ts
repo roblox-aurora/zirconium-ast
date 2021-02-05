@@ -31,9 +31,10 @@ import {
 	createUnaryExpression,
 	createVariableDeclaration,
 	createVariableStatement,
+	createUndefined,
 } from "Nodes/Create";
 import { ZrNodeFlag, ZrTypeKeyword } from "Nodes/Enum";
-import { getFriendlyName } from "Nodes/Functions";
+import { getFriendlyName, getVariableName } from "Nodes/Functions";
 import { isAssignableExpression, isOptionExpression } from "Nodes/Guards";
 import {
 	ArrayIndexExpression,
@@ -72,9 +73,10 @@ export const enum ZrParserErrorCode {
 	NotImplemented,
 	ExpressionExpected,
 	UnterminatedStringLiteral,
+	FunctionIdentifierExpected,
+	KeywordReserved,
 	InvalidIdentifier,
 	InvalidPropertyAccess,
-	FunctionIdentifierExpected,
 }
 
 interface FunctionCallContext {
@@ -649,7 +651,19 @@ export default class ZrParser {
 			return expr;
 		}
 
-		this.parserError(`Unexpected '${token.value}'`, ZrParserErrorCode.Unexpected, token);
+		if (token.kind === ZrTokenKind.Keyword) {
+			if (token.value === "undefined") {
+				return createUndefined();
+			}
+
+			this.parserError(
+				`Cannot use '${token.value}' here, it is a reserved keyword.`,
+				ZrParserErrorCode.KeywordReserved,
+				token,
+			);
+		} else {
+			this.parserError(`Unexpected '${token.value}' (${token.kind})`, ZrParserErrorCode.Unexpected, token);
+		}
 	}
 
 	/**
@@ -744,7 +758,7 @@ export default class ZrParser {
 			return statement;
 		} else {
 			this.parserNodeError(
-				`Cannot assign ${getFriendlyName(right)} to variable '${left.kind}'`,
+				`Cannot assign ${getFriendlyName(right)} to variable '${getVariableName(left)}'`,
 				ZrParserErrorCode.InvalidVariableAssignment,
 				right,
 			);

@@ -71,6 +71,11 @@ export enum ZrNodeKind {
 	PropertyAssignment,
 
 	UnaryExpression,
+
+	/**
+	 * `undefined`
+	 */
+	UndefinedKeyword,
 }
 
 export enum ZrTypeKeyword {

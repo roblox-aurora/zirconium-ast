@@ -26,40 +26,33 @@ local function createElement(class: string, props: Props, children: Array<Instan
     return inst
 end
 
-local source = [[# This is a comment
-this "Is a regular call"
-this --is-a string 'test' true 100.0
-this("Is a strict call")
-$x = "Variable $declaration"
-$y = 10
-$z = true
+local source = [[
+# keywords
+if, else, for, in, function, let, 
+export, const, delete, undefined,
+new, continue, while, return,
+default, null, nil,
+import, set, get,
+try, catch, finally,
+do, from, throw
 
-if $z {
-} else if $y {
-} else {
+# BooleanLiterals
+true, false
+
+# Function declarations
+function test(var0, $var1) {
+    return 10
 }
 
-$arr = [
-    "hi", 
-    10, 
-    true, 
-    [
-        {
-            a: 10,
-            b: 20
-        }
-    ] 
-]
+# Global calls
+print "Hello, World!"
 
-function printArray($array) {
-    for $value in $array {
-        print $value
-    }
-}
-printArray($arr)
+# Simple functio ncall
+test("Hello, World!", true, 10)
 
-openString " this should
-break the string and not terminate]]
+# Complex function call
+player.addItem(uniqueItemId: "test", slot: "Head")
+]]
 
 createElement("ScreenGui", {
     Parent = game.Players.LocalPlayer.PlayerGui

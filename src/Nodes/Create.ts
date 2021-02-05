@@ -36,6 +36,7 @@ import {
 	SimpleCallExpression,
 	NodeTypes,
 	Expression,
+	UndefinedKeyword,
 } from "./NodeTypes";
 import { isNode } from "./Guards";
 
@@ -57,6 +58,11 @@ export function createInterpolatedString(
 export function createArrayLiteral(values: ArrayLiteralExpression["values"]) {
 	const node = createNode(ZrNodeKind.ArrayLiteralExpression);
 	node.values = values;
+	return node;
+}
+
+export function createUndefined(): UndefinedKeyword {
+	const node = createNode(ZrNodeKind.UndefinedKeyword);
 	return node;
 }
 

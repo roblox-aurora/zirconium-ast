@@ -9,9 +9,7 @@ local ZrTextStream = CommandLib.ZrTextStream
 local ZrParser = CommandLib.ZrParser
 
 local str = [[
-	if ($x) {
-		print "Hi!"
-	}
+	$x = undefined
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)

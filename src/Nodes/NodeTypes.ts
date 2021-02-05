@@ -36,6 +36,7 @@ export interface NodeTypes {
 	[ZrNodeKind.ObjectLiteralExpression]: ObjectLiteral;
 	[ZrNodeKind.PropertyAssignment]: PropertyAssignment;
 	[ZrNodeKind.UnaryExpression]: UnaryExpression;
+	[ZrNodeKind.UndefinedKeyword]: UndefinedKeyword;
 }
 
 export interface Node {
@@ -49,11 +50,13 @@ export interface Node {
 }
 
 export interface Statement extends Node {
-	_statementBrand: any;
+	/** @deprecated */
+	readonly _nominal_Statement: unique symbol;
 }
 
 export interface Declaration extends Node {
-	_declarationBrand: any;
+	/** @deprecated */
+	readonly _nominal_Declaration: unique symbol;
 }
 
 type DeclarationName = Identifier | StringLiteral | NumberLiteral;
@@ -61,21 +64,29 @@ export interface NamedDeclaration extends Declaration {
 	readonly name?: DeclarationName;
 }
 
+export interface Keyword extends Node {
+	readonly _nominal_Keyword: unique symbol;
+}
+
 type PropertyName = Identifier | StringLiteral | NumberLiteral;
 export interface ObjectLiteralElement extends NamedDeclaration {
-	_objectLiteralBrand: any;
+	/** @deprecated */
+	readonly _nominal_ObjectLiteralElement: unique symbol;
 	readonly name?: PropertyName;
 }
 
 export interface LeftHandSideExpression extends Expression {
-	_leftHandExpressionBrand: any;
+	/** @deprecated */
+	readonly _nominal_LeftHandSide: unique symbol;
 }
 
 export interface Expression extends Node {
-	_expressionBrand: symbol;
+	/** @deprecated */
+	readonly _nominal_Expression: unique symbol;
 }
 export interface LiteralExpression extends Expression {
-	_literalExpressionBrand: any;
+	/** @deprecated */
+	readonly _nominal_Literal: unique symbol;
 }
 
 export interface DeclarationStatement extends Statement {
@@ -87,6 +98,10 @@ type OP = "&&" | "|" | "=";
 export interface OperatorToken extends Node {
 	operator: string;
 	kind: ZrNodeKind.OperatorToken;
+}
+
+export interface UndefinedKeyword extends Keyword, Expression {
+	kind: ZrNodeKind.UndefinedKeyword;
 }
 
 export interface ParenthesizedExpression extends Expression {
