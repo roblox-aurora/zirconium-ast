@@ -1,20 +1,15 @@
 local TS = require(game:GetService("ReplicatedStorage").CommandLib.vendor.RuntimeLib)
-local CommandLib = TS.import(script, game:GetService("ReplicatedStorage"), "CommandLib")
-local util = CommandLib.astUtility
-local prettyPrintNodes = util.prettyPrintNodes
+local zr = TS.import(script, game:GetService("ReplicatedStorage"), "CommandLib")
+local prettyPrintNodes = zr.prettyPrintNodes
 
 
-local ZrLexer = CommandLib.ZrLexer
-local ZrTextStream = CommandLib.ZrTextStream
-local ZrParser = CommandLib.ZrParser
+local ZrLexer = zr.ZrLexer
+local ZrTextStream = zr.ZrTextStream
+local ZrParser = zr.ZrParser
+local ZrVisitors = zr.ZrVisitors
 
 local str = [[
-	function regularFunction() {
-
-	}
-	const testFunction = function() {
-		
-	}
+	print "Hello, World!"
 ]];
 local stream = ZrTextStream.new(str)
 local lexer = ZrLexer.new(stream)
@@ -62,3 +57,28 @@ local parser = ZrParser.new(lexer, {
 local parsed = parser:parseOrThrow()
 
 prettyPrintNodes({parsed}, nil, false)
+
+-- REGION testing
+
+local function visitNode(node)
+	if zr.isCallableExpression(node) then
+		print("callableExpression", node.expression, node.arguments)
+	elseif zr.isVariableStatement(node) then
+		local declaration = node.declaration
+		print("variableDeclaration", declaration)
+	end
+
+	return node
+end
+local function visitNodeAndChildren(node)
+	visitNode(node)
+	ZrVisitors.visitEachChild(
+		node,
+		function(childNode)
+			return visitNodeAndChildren(childNode)
+		end
+	)
+end
+ZrVisitors.visitEachChild(parsed, function(file)
+	visitNodeAndChildren(file)
+end)

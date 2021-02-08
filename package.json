@@ -1,6 +1,6 @@
 {
   "name": "@rbxts/zirconium-ast",
-  "version": "1.0.0-beta.14",
+  "version": "1.0.0-beta.15",
   "description": "Parser for Zirconium",
   "main": "out/init.lua",
   "scripts": {
@@ -21,8 +21,8 @@
   },
   "types": "out/index.d.ts",
   "devDependencies": {
-    "@rbxts/compiler-types": "^1.0.0-beta.6.2",
-    "@rbxts/types": "^1.0.416",
+    "@rbxts/compiler-types": "^1.0.0-beta.15.0",
+    "@rbxts/types": "^1.0.447",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "eslint": "^7.3.1",

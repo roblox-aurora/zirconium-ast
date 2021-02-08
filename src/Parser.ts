@@ -35,6 +35,7 @@ import {
 	createExportKeyword,
 	createFunctionExpression,
 	createReturnStatement,
+	withError,
 } from "Nodes/Create";
 import { ZrNodeFlag, ZrTypeKeyword } from "Nodes/Enum";
 import { getFriendlyName, getVariableName } from "Nodes/Functions";
@@ -43,6 +44,7 @@ import {
 	ArrayIndexExpression,
 	CallExpression,
 	Expression,
+	ForInStatement,
 	Identifier,
 	Node,
 	OptionExpression,
@@ -84,6 +86,8 @@ export const enum ZrParserErrorCode {
 	InvalidIdentifier,
 	InvalidPropertyAccess,
 	InvalidReturnStatement,
+	ExpectedBlock,
+	ExpectedKeyword,
 }
 
 interface FunctionCallContext {
@@ -102,6 +106,7 @@ export interface ZrParserError {
 	code: ZrParserErrorCode;
 	node?: Node;
 	token?: Token;
+	range?: [number, number];
 }
 
 export interface ZrParserWarning {
@@ -162,29 +167,48 @@ export default class ZrParser {
 		return this.callContext[this.callContext.size() - 1];
 	}
 
-	private parserError(message: string, code: ZrParserErrorCode, token?: Token): never {
-		this.errors.push(
-			identity<ZrParserError>({
-				message,
-				code,
-				token,
-			}),
-		);
-		this.throwParserError(token ? `[${token.startPos}:${token.endPos}] ${message}` : message);
-	}
-
-	private parserNodeError(message: string, code: ZrParserErrorCode, node?: Node): never {
+	private parserErrorNode<TNode extends Node>(
+		message: string,
+		code: ZrParserErrorCode,
+		node: TNode,
+		range?: [number, number],
+	) {
 		this.errors.push(
 			identity<ZrParserError>({
 				message,
 				code,
 				node,
+				range,
 			}),
 		);
-		this.throwParserError(message);
+		return withError(node);
 	}
 
-	private throwParserError(message: string): never {
+	private throwParserError(message: string, code: ZrParserErrorCode, token?: Token): never {
+		this.errors.push(
+			identity<ZrParserError>({
+				message,
+				code,
+				token,
+				range: token ? [token.startPos, token.endPos] : undefined,
+			}),
+		);
+		this._throwParserError(message);
+	}
+
+	private throwParserNodeError(message: string, code: ZrParserErrorCode, node?: Node): never {
+		this.errors.push(
+			identity<ZrParserError>({
+				message,
+				code,
+				node,
+				range: node?.startPos ? [node.startPos, node.endPos ?? node.startPos] : undefined,
+			}),
+		);
+		this._throwParserError(message);
+	}
+
+	private _throwParserError(message: string): never {
 		throw `[ZParser] Parsing Error: ${message}`;
 	}
 
@@ -207,6 +231,16 @@ export default class ZrParser {
 		return this.is(kind, value) ? (this.lexer.peek()! as TokenTypes[K]) : undefined;
 	}
 
+	private tokenToString(token: Token | undefined) {
+		if (token === undefined) {
+			return "<EOF>";
+		} else if (token.value === "\n") {
+			return "<newline>";
+		} else {
+			return `'${token.value}'`;
+		}
+	}
+
 	/**
 	 * Skips a token of a specified kind if it's the next
 	 */
@@ -215,8 +249,8 @@ export default class ZrParser {
 			return this.lexer.next();
 		} else {
 			const node = this.lexer.peek();
-			this.parserError(
-				message ?? "Expected '" + value + "' got '" + node?.value + "'",
+			this.throwParserError(
+				message ?? "Expected '" + value + "' got " + this.tokenToString(node),
 				ZrParserErrorCode.Unexpected,
 				node,
 			);
@@ -240,7 +274,7 @@ export default class ZrParser {
 			const block = this.parseSource("{", "}") as Statement[];
 			return createBlock(block);
 		} else {
-			this.parserError("Expected '{'", ZrParserErrorCode.ExpectedToken);
+			this.throwParserError("Expected '{'", ZrParserErrorCode.ExpectedToken);
 		}
 	}
 
@@ -254,7 +288,7 @@ export default class ZrParser {
 			this.skip(ZrTokenKind.Special, ":");
 			return createBlock([this.mutateStatement(this.parseNext()) as Statement]);
 		} else {
-			this.parserError("Expected ':' got  " + this.lexer.peek()?.kind, ZrParserErrorCode.ExpectedToken);
+			this.throwParserError("Expected ':' got  " + this.lexer.peek()?.kind, ZrParserErrorCode.ExpectedToken);
 		}
 	}
 
@@ -297,7 +331,7 @@ export default class ZrParser {
 								),
 							);
 						} else {
-							this.parserError("Type expected", ZrParserErrorCode.Unexpected);
+							this.throwParserError("Type expected", ZrParserErrorCode.Unexpected);
 						}
 					} else {
 						parameters.push(
@@ -306,7 +340,7 @@ export default class ZrParser {
 					}
 				} else {
 					const nextItem = this.lexer.next();
-					this.parserError(
+					this.throwParserError(
 						`Parameter item expects an identifier`,
 						ZrParserErrorCode.IdentifierExpected,
 						nextItem,
@@ -315,7 +349,7 @@ export default class ZrParser {
 			}
 			this.skip(ZrTokenKind.Special, ")");
 		} else {
-			this.parserError(
+			this.throwParserError(
 				"'(' expected got '" + (this.lexer.peek()?.value ?? "EOF") + "'",
 				ZrParserErrorCode.ExpectedToken,
 			);
@@ -323,55 +357,61 @@ export default class ZrParser {
 		return parameters;
 	}
 
-	private parseFor() {
-		this.skip(ZrTokenKind.Keyword, "for");
-		if (this.lexer.isNextOfKind(ZrTokenKind.Identifier)) {
-			const id = this.lexer.next() as IdentifierToken;
+	private parseForIn(initializer: ForInStatement["initializer"]): ForInStatement {
+		const forStatement = createForInStatement(initializer, undefined, undefined);
+		this.lexer.next();
 
-			if (this.is(ZrTokenKind.Keyword, "in")) {
-				this.lexer.next();
+		const targetId = this.get(ZrTokenKind.Identifier);
+		if (targetId !== undefined) {
+			this.lexer.next();
 
-				const targetId = this.get(ZrTokenKind.Identifier);
-				if (targetId !== undefined) {
-					this.lexer.next();
-
-					return createForInStatement(
-						createIdentifier(id.value),
-						createIdentifier(targetId.value),
-						this.parseBlockOrInlineStatement(),
-					);
-				} else if (!this.lexer.isNextOfKind(ZrTokenKind.EndOfStatement)) {
-					const expression = this.mutateExpression(this.parseExpression());
-					if (
-						isNode(expression, ZrNodeKind.CallExpression) ||
-						isNode(expression, ZrNodeKind.SimpleCallExpression) ||
-						isNode(expression, ZrNodeKind.ArrayLiteralExpression) ||
-						isNode(expression, ZrNodeKind.ObjectLiteralExpression) ||
-						isNode(expression, ZrNodeKind.ArrayIndexExpression) ||
-						isNode(expression, ZrNodeKind.ParenthesizedExpression)
-					) {
-						return createForInStatement(
-							createIdentifier(id.value),
-							expression,
-							this.parseBlockOrInlineStatement(),
-						);
-					} else {
-						this.parserError(
-							"ForIn statement expects a valid expression",
-							ZrParserErrorCode.IdentifierExpected,
-						);
-					}
-				} else {
-					this.parserError(
-						"ForIn statement expects expression after 'in'",
-						ZrParserErrorCode.ExpressionExpected,
-					);
-				}
+			forStatement.expression = createIdentifier(targetId.value);
+			forStatement.statement = this.parseBlockOrInlineStatement();
+		} else if (!this.lexer.isNextOfKind(ZrTokenKind.EndOfStatement)) {
+			const expression = this.mutateExpression(this.parseExpression());
+			if (
+				isNode(expression, ZrNodeKind.CallExpression) ||
+				isNode(expression, ZrNodeKind.SimpleCallExpression) ||
+				isNode(expression, ZrNodeKind.ArrayLiteralExpression) ||
+				isNode(expression, ZrNodeKind.ObjectLiteralExpression) ||
+				isNode(expression, ZrNodeKind.ArrayIndexExpression) ||
+				isNode(expression, ZrNodeKind.ParenthesizedExpression)
+			) {
+				forStatement.expression = expression;
+				forStatement.statement = this.parseBlockOrInlineStatement();
 			} else {
-				this.parserError("'in' expected after identifier", ZrParserErrorCode.ExpectedToken);
+				return this.parserErrorNode(
+					"ForIn statement expects a valid expression",
+					ZrParserErrorCode.IdentifierExpected,
+					forStatement,
+				);
 			}
 		} else {
-			this.parserError("Identifier expected after 'for'", ZrParserErrorCode.IdentifierExpected);
+			this.throwParserError(
+				"ForIn statement expects expression after 'in'",
+				ZrParserErrorCode.ExpressionExpected,
+			);
+		}
+
+		return forStatement;
+	}
+
+	private parseFor() {
+		this.skip(ZrTokenKind.Keyword, "for");
+		const initializer = this.parseExpression();
+
+		if (isNode(initializer, ZrNodeKind.Identifier)) {
+			if (this.is(ZrTokenKind.Keyword, "in")) {
+				return this.parseForIn(initializer);
+			} else {
+				return this.throwParserNodeError(
+					"Expected 'in' after initializer",
+					ZrParserErrorCode.ExpectedKeyword,
+					initializer,
+				);
+			}
+		} else {
+			this.throwParserError("Identifier expected after 'for'", ZrParserErrorCode.IdentifierExpected);
 		}
 	}
 
@@ -385,10 +425,12 @@ export default class ZrParser {
 			this.functionContext.pop();
 			return createFunctionExpression(paramList, body);
 		} else {
-			this.parserError(
-				`Expected '{' - got ${this.lexer.next()?.value}`,
-				ZrParserErrorCode.NotImplemented,
-				funcToken,
+			const invalidFuncExpression = createFunctionExpression(paramList, undefined);
+			return this.parserErrorNode(
+				ErrorStrings.FUNCTION_IMPLEMENTATION_MISSING.format("<Anonymous>"),
+				ZrParserErrorCode.ExpectedBlock,
+				invalidFuncExpression,
+				funcToken ? [funcToken.startPos, funcToken.endPos] : undefined,
 			);
 		}
 	}
@@ -407,14 +449,21 @@ export default class ZrParser {
 				this.functionContext.pop();
 				return createFunctionDeclaration(idNode, paramList, body);
 			} else {
-				this.parserError(
+				return this.parserErrorNode(
 					ErrorStrings.FUNCTION_IMPLEMENTATION_MISSING.format(idNode.name),
 					ZrParserErrorCode.NotImplemented,
-					id,
+					createFunctionDeclaration(idNode, paramList, undefined),
+					[id.startPos, id.endPos],
 				);
+
+				// this.throwParserError(
+				// 	ErrorStrings.FUNCTION_IMPLEMENTATION_MISSING.format(idNode.name),
+				// 	ZrParserErrorCode.NotImplemented,
+				// 	id,
+				// );
 			}
 		} else {
-			this.parserError(
+			this.throwParserError(
 				ErrorStrings.FUNCTION_ID_EXPECTED,
 				ZrParserErrorCode.FunctionIdentifierExpected,
 				this.lexer.next() ?? funcToken,
@@ -423,7 +472,7 @@ export default class ZrParser {
 	}
 
 	private parseIfStatement() {
-		this.skip(ZrTokenKind.Keyword, "if");
+		const token = this.skip(ZrTokenKind.Keyword, "if");
 
 		const expr = this.mutateExpression(this.parseExpression());
 		const node = createIfStatement(expr, undefined, undefined);
@@ -433,6 +482,12 @@ export default class ZrParser {
 			return node;
 		} else if (this.is(ZrTokenKind.Special, "{")) {
 			node.thenStatement = this.parseBlock();
+		} else {
+			return this.parserErrorNode(
+				"Expected block or inline block after if statement",
+				ZrParserErrorCode.ExpectedBlock,
+				node,
+			);
 		}
 
 		if (this.is(ZrTokenKind.Keyword, "else")) {
@@ -442,6 +497,14 @@ export default class ZrParser {
 				node.elseStatement = this.parseIfStatement();
 			} else if (this.is(ZrTokenKind.Special, "{")) {
 				node.elseStatement = this.parseBlock();
+			} else if (this.is(ZrTokenKind.Special, ":")) {
+				node.elseStatement = this.parseInlineStatement();
+			} else {
+				return this.parserErrorNode(
+					"Unexpected '" + this.lexer.peek()?.value + "' after 'else' - must be block or inline statement",
+					ZrParserErrorCode.ExpectedBlock,
+					node,
+				);
 			}
 		}
 
@@ -535,7 +598,7 @@ export default class ZrParser {
 	 */
 	private parseInterpolatedString(token: InterpolatedStringToken) {
 		if ((token.flags & ZrTokenFlag.UnterminatedString) !== 0) {
-			this.parserError("Unterminated string literal", ZrParserErrorCode.UnterminatedStringLiteral, token);
+			this.throwParserError("Unterminated string literal", ZrParserErrorCode.UnterminatedStringLiteral, token);
 		}
 
 		const { values, variables } = token;
@@ -605,7 +668,7 @@ export default class ZrParser {
 			this.preventCommandParsing = preventCommandParsing;
 			return createPropertyAssignment(createIdentifier(id.value), expression);
 		} else {
-			this.parserError("Expected Identifier", ZrParserErrorCode.IdentifierExpected, this.lexer.peek());
+			this.throwParserError("Expected Identifier", ZrParserErrorCode.IdentifierExpected, this.lexer.peek());
 		}
 	}
 
@@ -652,24 +715,28 @@ export default class ZrParser {
 		// Handle literals
 		token = token ?? this.lexer.next();
 		if (!token) {
-			this.parserError("Expression expected", ZrParserErrorCode.ExpressionExpected, this.lexer.prev());
+			this.throwParserError("Expression expected", ZrParserErrorCode.ExpressionExpected, this.lexer.prev());
 		}
 
 		if (isToken(token, ZrTokenKind.String)) {
 			if (this.preventCommandParsing || token.quotes !== undefined) {
 				if (this.strict && token.quotes === undefined) {
-					this.parserError("Unexpected '" + token.value + "'", ZrParserErrorCode.UnexpectedWord);
+					this.throwParserError("Unexpected '" + token.value + "'", ZrParserErrorCode.UnexpectedWord);
 				}
 
 				if (!token.closed) {
-					this.parserError("Unterminated string literal", ZrParserErrorCode.UnterminatedStringLiteral, token);
+					this.throwParserError(
+						"Unterminated string literal",
+						ZrParserErrorCode.UnterminatedStringLiteral,
+						token,
+					);
 				}
 
 				return createStringNode(token.value, token.quotes);
 			} else if (token.value !== "") {
 				// assert(token.value.match("[%w_.]+")[0], `Invalid command expression: '${token.value}'`);
 				if (!token.value.match("[%w_.]+")[0]) {
-					this.parserError("Expression expected", ZrParserErrorCode.ExpressionExpected, token);
+					this.throwParserError("Expression expected", ZrParserErrorCode.ExpressionExpected, token);
 				}
 
 				const context = this.getCurrentCallContext();
@@ -685,7 +752,7 @@ export default class ZrParser {
 
 		if (isToken(token, ZrTokenKind.Identifier)) {
 			if (token.value === undefined || token.value.size() === 0) {
-				this.parserError("Unexpected empty identifier", ZrParserErrorCode.Unexpected, token);
+				this.throwParserError("Unexpected empty identifier", ZrParserErrorCode.Unexpected, token);
 			}
 			return createIdentifier(token.value);
 		} else if (isToken(token, ZrTokenKind.PropertyAccess)) {
@@ -705,7 +772,7 @@ export default class ZrParser {
 		} else if (isToken(token, ZrTokenKind.InterpolatedString)) {
 			return this.parseInterpolatedString(token);
 		} else if (isToken(token, ZrTokenKind.EndOfStatement)) {
-			this.throwParserError(`Invalid EndOfStatement: '${token.value}' [${token.startPos}:${token.endPos}]`);
+			this._throwParserError(`Invalid EndOfStatement: '${token.value}' [${token.startPos}:${token.endPos}]`);
 		} else if (isToken(token, ZrTokenKind.Option)) {
 			return createOptionKey(token.value);
 		}
@@ -729,7 +796,7 @@ export default class ZrParser {
 				return createUndefined();
 			}
 
-			this.parserError(
+			this.throwParserError(
 				`Cannot use '${token.value}' here, it is a reserved keyword.`,
 				ZrParserErrorCode.KeywordReserved,
 				token,
@@ -739,7 +806,7 @@ export default class ZrParser {
 				print(this.lexer.prev());
 			}
 
-			this.parserError(`Unexpected '${token.value}' (${token.kind})`, ZrParserErrorCode.Unexpected, token);
+			this.throwParserError(`Unexpected '${token.value}' (${token.kind})`, ZrParserErrorCode.Unexpected, token);
 		}
 	}
 
@@ -753,7 +820,7 @@ export default class ZrParser {
 				exports ? [createExportKeyword()] : undefined,
 			);
 		} else {
-			this.parserError(
+			this.throwParserError(
 				"'" + keyword + "' must be followed by a text identifier",
 				ZrParserErrorCode.InvalidVariableAssignment,
 				word,
@@ -778,7 +845,7 @@ export default class ZrParser {
 			if (this.functionContext.size() > 0) {
 				return createReturnStatement(this.parseExpression());
 			} else {
-				this.parserError(
+				this.throwParserError(
 					"'return' can only be used inside of functions",
 					ZrParserErrorCode.InvalidReturnStatement,
 					this.lexer.prev(),
@@ -817,10 +884,10 @@ export default class ZrParser {
 			assert(id);
 
 			if (id.value === "") {
-				this.parserError("Expected identifier name", ZrParserErrorCode.Unexpected, id);
+				this.throwParserError("Expected identifier name", ZrParserErrorCode.Unexpected, id);
 			}
 			if (!id.value.match("^[_A-Za-z][_A-Za-z0-9]*$")[0]) {
-				this.parserError(
+				this.throwParserError(
 					ErrorStrings.INVALID_IDENTIFIER.format(id.value),
 					ZrParserErrorCode.InvalidIdentifier,
 					id,
@@ -840,13 +907,13 @@ export default class ZrParser {
 			assert(id);
 
 			if (!id.value.match("^[_A-Za-z][_A-Za-z0-9]*$")[0]) {
-				this.parserError(
+				this.throwParserError(
 					ErrorStrings.PROPERTY_ACCESS_IDENTIFIER_INVALID.format(id.properties.join("."), id.value),
 					ZrParserErrorCode.InvalidIdentifier,
 					id,
 				);
 			} else if ((id.flags & ZrTokenFlag.InvalidIdentifier) !== 0) {
-				this.parserError(
+				this.throwParserError(
 					ErrorStrings.PROPERTY_ACCESS_PROPERTY_INVALID.format(id.properties.join("."), id.value),
 					ZrParserErrorCode.InvalidPropertyAccess,
 					id,
@@ -889,7 +956,7 @@ export default class ZrParser {
 			const statement = createVariableStatement(decl, modifiers);
 			return statement;
 		} else {
-			this.parserNodeError(
+			this.throwParserNodeError(
 				`Cannot assign ${getFriendlyName(right)} to variable '${getVariableName(left)}'`,
 				ZrParserErrorCode.InvalidVariableAssignment,
 				right,
@@ -906,7 +973,7 @@ export default class ZrParser {
 				this.lexer.next();
 
 				if (token.value === "=") {
-					this.parserError(
+					this.throwParserError(
 						"Unexpected '=' after " + ZrNodeKind[left.kind],
 						ZrParserErrorCode.Unexpected,
 						token,
@@ -934,7 +1001,7 @@ export default class ZrParser {
 
 				if (token.value === "=") {
 					if (!isNode(left, ZrNodeKind.Identifier) && !isNode(left, ZrNodeKind.PropertyAccessExpression)) {
-						this.parserError(
+						this.throwParserError(
 							"Unexpected '=' (Assignment to " + ZrNodeKind[left.kind] + ")",
 							ZrParserErrorCode.Unexpected,
 							token,
@@ -964,7 +1031,7 @@ export default class ZrParser {
 		if (this.isNextEndOfStatement()) {
 			this.lexer.next();
 		} else {
-			this.parserError("Expected end of statement", ZrParserErrorCode.Unexpected);
+			this.throwParserError("Expected end of statement", ZrParserErrorCode.Unexpected);
 		}
 	}
 
@@ -1011,12 +1078,21 @@ export default class ZrParser {
 	}
 
 	public parseOrThrow() {
-		return createSourceFile(this.parseSource());
+		const source = createSourceFile(this.parseSource());
+		if (this.hasErrors()) {
+			throw this.errors
+				.map((e) =>
+					e.range ? `[ZR${e.code}] [${e.range[0]}:${e.range[1]}] ${e.message}` : `[ZR${e.code}] ${e.message}`,
+				)
+				.join("\n");
+		} else {
+			return source;
+		}
 	}
 
 	public parse() {
 		try {
-			return createSourceFile(this.parseSource());
+			return this.parseOrThrow();
 		} catch (e) {
 			warn(e);
 			return createSourceFile([]);

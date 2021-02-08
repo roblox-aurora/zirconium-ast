@@ -4,7 +4,7 @@ import { CmdSyntaxKind } from "Nodes";
 import { getNodeKindName } from "Nodes/Functions";
 import { ZrNodeFlag } from "Nodes/Enum";
 
-export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
+function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 	for (const node of nodes) {
 		if (isNode(node, CmdSyntaxKind.String)) {
 			const str = node.quotes !== undefined ? `${node.quotes}${node.text}${node.quotes}` : `\`${node.text}\``;
@@ -231,3 +231,5 @@ export function prettyPrintNodes(nodes: Node[], prefix = "", verbose = false) {
 		}
 	}
 }
+
+export = prettyPrintNodes;

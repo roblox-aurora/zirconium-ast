@@ -52,6 +52,10 @@ export interface Node {
 	flags: ZrNodeFlag;
 }
 
+export interface ValuesExpression extends Expression {
+	readonly values: Node[];
+}
+
 export interface Statement extends Node {
 	/** @deprecated */
 	readonly _nominal_Statement: unique symbol;
@@ -157,7 +161,7 @@ export interface SourceFile extends Node {
 	children: Array<Node>;
 }
 
-export interface InterpolatedStringExpression extends Expression {
+export interface InterpolatedStringExpression extends ValuesExpression {
 	kind: ZrNodeKind.InterpolatedString;
 	values: Array<StringLiteral | Identifier>;
 }
@@ -176,7 +180,7 @@ export interface BinaryExpression extends Expression, Declaration {
 	children: Node[];
 }
 
-export interface ArrayLiteralExpression extends Expression {
+export interface ArrayLiteralExpression extends ValuesExpression {
 	kind: ZrNodeKind.ArrayLiteralExpression;
 	values: Node[];
 }
@@ -187,7 +191,7 @@ export interface PropertyAssignment extends ObjectLiteralElement {
 	initializer: Expression;
 }
 
-export interface ObjectLiteral extends LiteralExpression {
+export interface ObjectLiteral extends LiteralExpression, ValuesExpression {
 	kind: ZrNodeKind.ObjectLiteralExpression;
 	values: PropertyAssignment[];
 }

@@ -1,10 +1,12 @@
-import * as types from "./Nodes/Guards";
-import * as util from "Utility";
+import prettyPrintNodes from "Utility/PrettyPrintNodes";
 import ZrLexer from "Lexer";
 import ZrTextStream from "TextStream";
 import ZrParser from "Parser";
 import ZrRichTextHighlighter from "Syntax/RichTextHighlighter";
 import * as factory from "./Nodes/Create";
+import * as ZrVisitors from "Utility/NodeVisitor";
 const AST_VERSION = PKG_VERSION;
 
-export { ZrLexer, ZrParser, ZrTextStream, ZrRichTextHighlighter, factory, types, AST_VERSION, util as astUtility };
+export { ZrVisitors, ZrLexer, ZrParser, ZrTextStream, ZrRichTextHighlighter, prettyPrintNodes, factory, AST_VERSION };
+
+export * from "./Nodes/Guards";

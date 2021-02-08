@@ -53,18 +53,26 @@ export function createInterpolatedString(
 ): InterpolatedStringExpression {
 	const node = createNode(ZrNodeKind.InterpolatedString);
 	node.values = values;
+	node.children = values;
 	return node;
 }
 
 export function createReturnStatement(expression: Expression) {
 	const node = createNode(ZrNodeKind.ReturnStatement);
 	node.expression = expression;
+	node.children = [expression];
 	return node;
 }
 
 export function createArrayLiteral(values: ArrayLiteralExpression["values"]) {
 	const node = createNode(ZrNodeKind.ArrayLiteralExpression);
 	node.values = values;
+	node.children = values;
+	return node;
+}
+
+export function withError<T extends Node>(node: T): T {
+	node.flags |= ZrNodeFlag.NodeHasError;
 	return node;
 }
 
@@ -85,12 +93,14 @@ export function createPropertyAssignment(
 	const node = createNode(ZrNodeKind.PropertyAssignment);
 	node.name = name;
 	node.initializer = initializer;
+	node.children = [name, initializer];
 	return node;
 }
 
 export function createObjectLiteral(values: ObjectLiteral["values"]) {
 	const node = createNode(ZrNodeKind.ObjectLiteralExpression);
 	node.values = values;
+	node.children = values;
 	return node;
 }
 
@@ -101,6 +111,7 @@ export function createArrayIndexExpression(
 	const node = createNode(ZrNodeKind.ArrayIndexExpression);
 	node.expression = expression;
 	node.index = index;
+	node.children = [expression, index];
 	return node;
 }
 
@@ -111,6 +122,7 @@ export function createPropertyAccessExpression(
 	const node = createNode(ZrNodeKind.PropertyAccessExpression);
 	node.expression = expression;
 	node.name = name;
+	node.children = [expression, name];
 	return node;
 }
 
@@ -130,24 +142,38 @@ export function createIfStatement(
 	node.condition = condition;
 	node.thenStatement = thenStatement;
 	node.elseStatement = elseStatement;
+	node.children = [];
+	if (condition) node.children.push(condition);
+	if (thenStatement) node.children.push(thenStatement);
+	if (elseStatement) node.children.push(elseStatement);
 	return node;
 }
 
 export function createExpressionStatement(expression: Expression) {
 	const node = createNode(ZrNodeKind.ExpressionStatement);
 	node.expression = expression;
+	node.children = [expression];
 	return node;
 }
 
 export function createForInStatement(
 	initializer: ForInStatement["initializer"],
-	expression: ForInStatement["expression"],
-	statement: ForInStatement["statement"],
+	expression: ForInStatement["expression"] | undefined,
+	statement: ForInStatement["statement"] | undefined,
 ) {
 	const node = createNode(ZrNodeKind.ForInStatement);
 	node.initializer = initializer;
-	node.expression = expression;
-	node.statement = statement;
+	node.children = [initializer];
+
+	if (expression) {
+		node.expression = expression;
+		node.children.push(expression);
+	}
+
+	if (statement) {
+		node.statement = statement;
+		node.children.push(statement);
+	}
 	return node;
 }
 
@@ -177,6 +203,7 @@ export function flattenInterpolatedString(
 export function createBlock(statements: Statement[]) {
 	const node = createNode(ZrNodeKind.Block);
 	node.statements = statements;
+	node.children = statements;
 	return node;
 }
 
@@ -184,6 +211,7 @@ export function createTypeReference(typeName: TypeReference["typeName"]) {
 	return identity<TypeReference>({
 		kind: ZrNodeKind.TypeReference,
 		typeName,
+		children: [],
 		flags: 0,
 	});
 }
@@ -196,34 +224,46 @@ export function createParameter(name: ParameterDeclaration["name"], type?: Param
 	const node = createNode(ZrNodeKind.Parameter);
 	node.name = name;
 	node.type = type;
+	node.children = [name];
 	return node;
 }
 
 export function createFunctionExpression(
 	parameters: FunctionDeclaration["parameters"],
-	body: FunctionDeclaration["body"],
+	body: FunctionDeclaration["body"] | undefined,
 ) {
 	const node = createNode(ZrNodeKind.FunctionExpression);
 	node.parameters = parameters;
-	node.body = body;
+	node.children = [...parameters];
+
+	if (body) {
+		node.body = body;
+		node.children.push(body);
+	}
 	return node;
 }
 
 export function createFunctionDeclaration(
 	name: FunctionDeclaration["name"],
 	parameters: FunctionDeclaration["parameters"],
-	body: FunctionDeclaration["body"],
+	body: FunctionDeclaration["body"] | undefined,
 ) {
 	const node = createNode(ZrNodeKind.FunctionDeclaration);
 	node.name = name;
+	node.children = [name];
+
 	node.parameters = parameters;
-	node.body = body;
+	if (body) {
+		node.body = body;
+		node.children.push(body);
+	}
 	return node;
 }
 
 export function createParenthesizedExpression(expression: ParenthesizedExpression["expression"]) {
 	const node = createNode(ZrNodeKind.ParenthesizedExpression);
 	node.expression = expression;
+	node.children = [expression];
 	return node;
 }
 
@@ -255,6 +295,7 @@ export function createSimpleCallExpression(
 	node.arguments = args;
 	node.startPos = startPos;
 	node.endPos = endPos;
+	node.children = [expression, ...args];
 	return node;
 }
 
@@ -279,11 +320,12 @@ export function createInnerExpression(expression: InnerExpression["expression"],
 	node.expression = expression;
 	node.startPos = startPos;
 	node.endPos = endPos;
+	node.children = [expression];
 	return node;
 }
 
 export function createPrefixToken(value: PrefixToken["value"]): PrefixToken {
-	return { kind: ZrNodeKind.PrefixToken, value, flags: 0 };
+	return { kind: ZrNodeKind.PrefixToken, value, flags: 0, children: [] };
 }
 
 export function createPrefixExpression(
@@ -293,6 +335,7 @@ export function createPrefixExpression(
 	const node = createNode(ZrNodeKind.PrefixExpression);
 	node.prefix = prefix;
 	node.expression = expression;
+	node.children = [prefix, expression];
 	return node;
 }
 
@@ -351,6 +394,7 @@ export function createOperator(operator: OperatorToken["operator"], startPos?: n
 		kind: ZrNodeKind.OperatorToken,
 		operator,
 		flags: 0,
+		children: [],
 		startPos,
 		endPos: (startPos ?? 0) + operator.size() - 1,
 	};
@@ -364,6 +408,7 @@ export function createVariableDeclaration(
 	node.flags = ZrNodeFlag.Let;
 	node.identifier = identifier;
 	node.expression = expression;
+	node.children = [identifier, expression];
 	return node;
 }
 
@@ -374,6 +419,7 @@ export function createVariableStatement(
 	const node = createNode(ZrNodeKind.VariableStatement);
 	node.declaration = declaration;
 	node.modifiers = modifiers;
+	node.children = [declaration];
 	return node;
 }
 
@@ -384,7 +430,7 @@ export function createBooleanNode(value: boolean): BooleanLiteral {
 }
 
 export function createEndOfStatementNode(): EndOfStatement {
-	return { kind: ZrNodeKind.EndOfStatement, flags: 0 };
+	return { kind: ZrNodeKind.EndOfStatement, flags: 0, children: [] };
 }
 
 export function createInvalidNode(
@@ -398,6 +444,7 @@ export function createInvalidNode(
 		expression,
 		message,
 		flags: ZrNodeFlag.NodeHasError,
+		children: [],
 		// eslint-disable-next-line roblox-ts/lua-truthiness
 		startPos: startPos ?? expression.startPos,
 		// eslint-disable-next-line roblox-ts/lua-truthiness
@@ -421,6 +468,7 @@ export function createBinaryExpression(
 
 	left.parent = node;
 	right.parent = node;
+	node.children = [left, right];
 	return node;
 }
 
@@ -431,5 +479,6 @@ export function createUnaryExpression(op: string, expression: Node, startPos?: n
 	node.startPos = startPos;
 	node.endPos = endPos;
 	node.parent = expression;
+	node.children = [expression];
 	return node;
 }
