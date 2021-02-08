@@ -144,7 +144,8 @@ export default class ZrLexer {
 				closed,
 				flags: closed ? ZrTokenFlag.None : ZrTokenFlag.UnterminatedString,
 				endPos,
-				quotes: startCharacter,
+				startCharacter,
+				endCharacter: closed ? startCharacter : undefined,
 			});
 		} else {
 			return identity<InterpolatedStringToken>({

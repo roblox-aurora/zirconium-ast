@@ -58,11 +58,10 @@ export default class ZrRichTextHighlighter {
 			if (isToken(token, ZrTokenKind.Boolean))
 				str += font(token.rawText, options.BooleanLiteral ?? options.OperatorColor);
 			else if (isToken(token, ZrTokenKind.String)) {
-				const { quotes, value, flags } = token;
-				if (quotes !== undefined) {
-					const isTerminated = (flags & ZrTokenFlag.UnterminatedString) === 0;
+				const { value, flags, startCharacter, endCharacter } = token;
+				if (startCharacter !== undefined) {
 					str += font(
-						`${quotes}${font(value, options.StringColor)}${isTerminated ? quotes : ""}`,
+						`${startCharacter}${font(value, options.StringColor)}${endCharacter}`,
 						options.OperatorColor,
 					);
 				} else {

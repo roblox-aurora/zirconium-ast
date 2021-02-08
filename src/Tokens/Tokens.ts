@@ -109,7 +109,8 @@ export interface StringToken extends TokenBase {
 	kind: ZrTokenKind.String;
 	value: string;
 	closed: boolean;
-	quotes?: string;
+	startCharacter?: string;
+	endCharacter?: string;
 }
 
 export function joinInterpolatedString(values: string[], variables: string[]) {
